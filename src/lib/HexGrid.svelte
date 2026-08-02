@@ -63,16 +63,26 @@
     };
   });
 
+  let shakeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  // Deliberately not $state: this is bookkeeping for the effect below, not
+  // something that should itself be a reactive dependency — making it $state
+  // caused the effect to read *and* write a tracked value, triggering an
+  // immediate self-retrigger that cleared the shake timer before it could fire.
   // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
-  let previousRejectedToken = $state(rejectedToken);
+  let previousRejectedToken = rejectedToken;
   $effect(() => {
     if (rejectedToken !== undefined && rejectedToken !== previousRejectedToken) {
       previousRejectedToken = rejectedToken;
       shaking = true;
-      setTimeout(() => {
+      // Clear any still-pending timer from a prior rejection so it can't cut
+      // this shake short by resetting `shaking` early.
+      clearTimeout(shakeTimeoutId);
+      shakeTimeoutId = setTimeout(() => {
         shaking = false;
       }, 300);
     }
+    return () => clearTimeout(shakeTimeoutId);
   });
 
   function tileFromPoint(x: number, y: number): Tile | null {
@@ -165,10 +175,11 @@
 </script>
 
 <div class="hexgrid">
+  <!-- svelte-ignore a11y_no_static_element_interactions -- pointer-only for now;
+       role="application" would overclaim keyboard support that doesn't exist yet -->
   <svg
     viewBox="{viewBox.minX} {viewBox.minY} {viewBox.width} {viewBox.height}"
     preserveAspectRatio="xMidYMid meet"
-    role="application"
     aria-label="Hexagon letter grid"
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}

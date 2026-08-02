@@ -54,6 +54,9 @@ export type ViewBox = { minX: number; minY: number; width: number; height: numbe
 
 /** Computes an SVG viewBox that contains every tile's hexagon, given as pixel centers. */
 export function computeViewBox(coords: AxialCoord[], size: number, gap: number): ViewBox {
+  if (coords.length === 0) {
+    return { minX: 0, minY: 0, width: 0, height: 0 };
+  }
   const pad = size + gap;
   const centers = coords.map((c) => axialToPixel(c, size + gap / 2));
   const xs = centers.map((c) => c.x);
