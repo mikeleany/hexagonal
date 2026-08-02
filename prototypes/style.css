@@ -1,0 +1,43 @@
+/* General Page Styling */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #282c34;
+    margin: 0;
+}
+
+/* Container for the hexagons */
+.hexagon-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Row Styling */
+.row {
+    display: flex;
+    gap: 5px;
+}
+
+/* Offset alternating rows to align hexagons */
+.offset-1 {
+    transform: translateX(32px);
+}
+
+.offset-2 {
+    transform: translateX(0px);
+}
+
+/* Hexagon Styling */
+.hexagon {
+    width: 64px;
+    height: 74px;
+    background-color: #61dafb;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: inline-block;
+    margin: 2px 0;
+}
+

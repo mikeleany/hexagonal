@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexagon Grid</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #282c34;
+            margin: 0;
+        }
+
+        .hex-container {
+            display: grid;
+            grid-template-columns: repeat(5, 70px);
+            gap: 5px;
+            width: fit-content;
+            align-items: center;
+        }
+
+        .hex {
+            width: 60px;
+            height: 69px;
+            background-color: #61dafb;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        /* Offset every alternate row */
+        .hex:nth-child(5n + 1) {
+            margin-left: 35px;
+        }
+    </style>
+</head>
+<body>
+    <div class="hex-container">
+        <!-- 19 Hexagons -->
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+</body>
+</html>
+

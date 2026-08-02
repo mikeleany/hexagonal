@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexagon Grid</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #282c34;
+            margin: 0;
+        }
+
+        .hex-container {
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            width: 240px;
+            height: 280px;
+            justify-content: center;
+        }
+
+        .hex {
+            width: 60px;
+            height: 69px;
+            background-color: #61dafb;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            position: absolute;
+        }
+
+        /* Hexagon Spacing */
+        .hex:nth-child(1)  { top: 0px; left: 70px; } /* Top Left */
+        .hex:nth-child(2)  { top: 0px; left: 140px; } /* Top Center */
+        .hex:nth-child(3)  { top: 0px; left: 210px; } /* Top Right */
+
+        .hex:nth-child(4)  { top: 60px; left: 35px; }  /* Row 2 Left */
+        .hex:nth-child(5)  { top: 60px; left: 105px; } /* Row 2 Center */
+        .hex:nth-child(6)  { top: 60px; left: 175px; } /* Row 2 Right */
+        .hex:nth-child(7)  { top: 60px; left: 245px; } /* Row 2 Far Right */
+
+        .hex:nth-child(8)  { top: 120px; left: 0px; }   /* Row 3 Far Left */
+        .hex:nth-child(9)  { top: 120px; left: 70px; }  /* Row 3 Left */
+        .hex:nth-child(10) { top: 120px; left: 140px; } /* Row 3 Center */
+        .hex:nth-child(11) { top: 120px; left: 210px; } /* Row 3 Right */
+        .hex:nth-child(12) { top: 120px; left: 280px; } /* Row 3 Far Right */
+
+        .hex:nth-child(13) { top: 180px; left: 35px; }  /* Row 4 Left */
+        .hex:nth-child(14) { top: 180px; left: 105px; } /* Row 4 Center */
+        .hex:nth-child(15) { top: 180px; left: 175px; } /* Row 4 Right */
+        .hex:nth-child(16) { top: 180px; left: 245px; } /* Row 4 Far Right */
+
+        .hex:nth-child(17) { top: 240px; left: 70px; }  /* Bottom Left */
+        .hex:nth-child(18) { top: 240px; left: 140px; } /* Bottom Center */
+        .hex:nth-child(19) { top: 240px; left: 210px; } /* Bottom Right */
+        
+    </style>
+</head>
+<body>
+    <div class="hex-container">
+        <!-- 19 Hexagons -->
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+</body>
+</html>
