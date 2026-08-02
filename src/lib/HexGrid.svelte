@@ -195,11 +195,13 @@
   .hexgrid {
     --hex-fill: #61dafb;
     --hex-text: #282c34;
+    --hex-accent: #f4d35e;
     width: 100%;
     height: 100%;
   }
 
   svg {
+    display: block;
     width: 100%;
     height: 100%;
     touch-action: none;
@@ -208,6 +210,11 @@
   .tile polygon {
     fill: var(--hex-fill);
     cursor: pointer;
+  }
+
+  .tile.selected polygon {
+    stroke: var(--hex-accent);
+    stroke-width: 0.6;
   }
 
   .tile text {
@@ -222,7 +229,7 @@
 
   .selection-line {
     fill: none;
-    stroke: var(--hex-text);
+    stroke: var(--hex-accent);
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
