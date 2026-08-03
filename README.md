@@ -4,7 +4,7 @@ A word-search game in the style of Spelling Bee/Bonza: drag across a hexagonal l
 
 ## Playing
 
-Click and drag from tile to tile — each tile you drag across must be adjacent to the last, and letters are read off in the order you cross them. Release on the last tile of a valid word to submit it; releasing anywhere else cancels the selection. Words you've already found are tracked in the sidebar, grouped by length by default (toggle to a flat alphabetical list if you prefer).
+Click and drag from tile to tile — each tile you drag across must be adjacent to the last, and letters are read off in the order you cross them. Release on the last tile of a valid word to submit it; releasing anywhere else cancels the selection. If the submitted word isn't on the list, it's rejected with a red flash. Words you've already found are tracked in the sidebar, grouped by length by default (toggle to a flat alphabetical list if you prefer).
 
 ## Status
 

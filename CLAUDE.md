@@ -12,7 +12,7 @@ Hexagonal is a word-search game (Spelling Bee/Bonza-style) built with Svelte 5 +
 npm run dev      # start Vite dev server (port 5173)
 npm run build    # production build (runs `vite build`; no separate typecheck step)
 npm run preview  # preview a production build
-npm run check    # svelte-check (src/**/*.svelte, *.ts) + tsc --noEmit on tsconfig.node.json
+npm run check    # svelte-check (src/**/*.svelte, *.ts) + tsc -p tsconfig.node.json (noEmit set in that config)
 ```
 
 There is no test suite and no linter/formatter configured — `npm run check` is the only correctness gate. Always run it after making changes. Note that it only catches type errors: layout/interaction bugs (e.g. a reflow triggered by content changes) can type-check cleanly and still be broken, so UI/layout changes need manual browser verification too.
