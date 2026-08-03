@@ -36,20 +36,22 @@
 
 <main>
   <TitleBar foundCount={foundWords.length} totalCount={WORD_LIST.length} />
-  <SelectionDisplay
-    {liveLetters}
-    resultWord={lastResultWord}
-    resultAccepted={lastResultAccepted}
-    {resultToken}
-  />
   <div class="play-area">
-    <div class="grid-wrap">
-      <HexGrid
-        tiles={BOARD_TILES}
-        onSelectionChange={handleSelectionChange}
-        onWordSubmit={handleWordSubmit}
-        {rejectedToken}
+    <div class="board-column">
+      <SelectionDisplay
+        {liveLetters}
+        resultWord={lastResultWord}
+        resultAccepted={lastResultAccepted}
+        {resultToken}
       />
+      <div class="grid-wrap">
+        <HexGrid
+          tiles={BOARD_TILES}
+          onSelectionChange={handleSelectionChange}
+          onWordSubmit={handleWordSubmit}
+          {rejectedToken}
+        />
+      </div>
     </div>
     <div class="sidebar-wrap">
       <Sidebar wordList={WORD_LIST} {foundWords} />
@@ -65,14 +67,25 @@
     height: 100%;
     box-sizing: border-box;
     padding: 4vmin;
-    gap: 1.5vmin;
+    gap: 5vmin;
   }
 
   .play-area {
     display: flex;
     flex: 1;
     min-height: 0;
-    gap: 2vmin;
+    gap: 5vmin;
+  }
+
+  /* Groups the live-selection readout with the grid (not the sidebar) so
+     centering it horizontally lines it up with the board, not the whole row. */
+  .board-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    gap: 5vmin;
   }
 
   .grid-wrap {
@@ -91,15 +104,16 @@
       flex-direction: column;
     }
 
-    .grid-wrap {
+    .board-column {
       flex: 1 1 auto;
       min-height: 30vh;
     }
 
+    /* Fixed height (not content-hugging) so the number of found words never
+       changes how much room the grid gets — only window resizing should. */
     .sidebar-wrap {
-      flex: 0 0 auto;
+      flex: 0 0 30vh;
       width: 100%;
-      max-height: 35vh;
     }
   }
 </style>

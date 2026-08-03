@@ -29,7 +29,9 @@
     return () => clearTimeout(lingerTimeoutId);
   });
 
-  let displayText = $derived(liveLetters.length > 0 ? liveLetters : linger ? resultWord : '');
+  let displayText = $derived(
+    liveLetters.length > 0 ? liveLetters : linger ? resultWord : "",
+  );
   let showResultColor = $derived(liveLetters.length === 0 && linger);
 </script>
 
@@ -45,14 +47,18 @@
 
 <style>
   .selection-display {
+    --text-size: clamp(1.5rem, 5vmin, 3rem);
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 1.5em;
+    /* Fixed height (not min-height) so an empty vs. filled selection never
+       reflows the layout below it — only window resizing should do that. */
+    height: var(--text-size);
   }
 
   .text {
-    font-size: clamp(1.5rem, 5vmin, 3rem);
+    font-size: var(--text-size);
+    line-height: 1;
     font-weight: 600;
     white-space: nowrap;
     letter-spacing: 0.05em;

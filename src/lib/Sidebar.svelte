@@ -79,9 +79,12 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    columns: 6em;
+    column-gap: 1em;
   }
 
   li {
     padding: 0.15em 0;
+    break-inside: avoid;
   }
 </style>
