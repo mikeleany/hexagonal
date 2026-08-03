@@ -29,5 +29,9 @@ const LETTERS: Record<string, string> = {
 
 export const BOARD_TILES: Tile[] = generateHexCoords(2).map((coord) => {
   const id = tileId(coord);
-  return { id, ...coord, letter: LETTERS[id] };
+  const letter = LETTERS[id];
+  if (letter === undefined) {
+    throw new Error(`Missing board letter for tile ${id}`);
+  }
+  return { id, ...coord, letter };
 });
