@@ -3,9 +3,10 @@
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
-  import { BOARD_TILES } from './lib/board';
-  import { WORD_LIST } from './lib/wordList';
+  import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
+
+  const wordSet = new Set(DAILY_WORD_LIST);
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
@@ -22,7 +23,7 @@
 
   function handleWordSubmit(submission: WordSubmission) {
     const { word } = submission;
-    const isValid = WORD_LIST.includes(word);
+    const isValid = wordSet.has(word);
     lastResultWord = word;
     lastResultAccepted = isValid;
     resultToken += 1;
@@ -35,7 +36,7 @@
 </script>
 
 <main>
-  <TitleBar foundCount={foundWords.length} totalCount={WORD_LIST.length} />
+  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} />
   <div class="play-area">
     <div class="board-column">
       <SelectionDisplay
@@ -46,7 +47,7 @@
       />
       <div class="grid-wrap">
         <HexGrid
-          tiles={BOARD_TILES}
+          tiles={DAILY_TILES}
           onSelectionChange={handleSelectionChange}
           onWordSubmit={handleWordSubmit}
           {rejectedToken}
@@ -54,7 +55,7 @@
       </div>
     </div>
     <div class="sidebar-wrap">
-      <Sidebar wordList={WORD_LIST} {foundWords} />
+      <Sidebar wordList={DAILY_WORD_LIST} {foundWords} />
     </div>
   </div>
 </main>

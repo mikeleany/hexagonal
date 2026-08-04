@@ -1,6 +1,6 @@
 # Hexagonal
 
-A word-search game in the style of Spelling Bee/Bonza: drag across a hexagonal letter grid to spell words from a fixed word list.
+A word-search game in the style of Spelling Bee/Bonza: drag across a hexagonal letter grid to spell words from that day's word list.
 
 ## Playing
 
@@ -8,7 +8,7 @@ Click and drag from tile to tile — each tile you drag across must be adjacent 
 
 ## Status
 
-This is an early-stage prototype. The board layout ([src/lib/board.ts](src/lib/board.ts)) and word list ([src/lib/wordList.ts](src/lib/wordList.ts)) are both small, hand-picked placeholders — every word in the list is a manually verified path on that exact board — standing in for real dictionary-driven board generation. Swapping one out requires re-verifying the other, or valid submissions will silently fail.
+This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction currently uses a temporary v1 strategy (plant one 19-letter dictionary word across the whole board) rather than the general multi-word placement algorithm that's planned for later; offensive-word filtering on the bundled dictionary is also not implemented yet. Both are flagged with TODOs in the code.
 
 ## Development
 
