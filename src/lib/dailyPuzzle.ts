@@ -1,13 +1,9 @@
-import { buildBoard } from "./boardConstruction";
-import {
-  loadEligibleWords,
-  MAX_WORD_LENGTH,
-  MIN_WORD_LENGTH,
-} from "./dictionary";
-import type { Tile } from "./hexGeometry";
-import { mulberry32, seedForDate } from "./prng";
-import { buildTrie } from "./trie";
-import { solveBoard } from "./wordSolver";
+import { buildBoard } from './boardConstruction';
+import { loadEligibleWords, MAX_WORD_LENGTH, MIN_WORD_LENGTH } from './dictionary';
+import type { Tile } from './hexGeometry';
+import { mulberry32, seedForDate } from './prng';
+import { buildTrie } from './trie';
+import { solveBoard } from './wordSolver';
 
 export type DailyPuzzle = {
   tiles: Tile[];
@@ -25,7 +21,6 @@ export function generateDailyPuzzle(date: Date = new Date()): DailyPuzzle {
   const tiles = buildBoard(eligibleWords, rng);
   const trie = buildTrie(eligibleWords);
   const wordList = solveBoard(tiles, trie, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
-  console.log(wordList);
 
   return { tiles, wordList };
 }
