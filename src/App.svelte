@@ -5,13 +5,21 @@
   import Sidebar from './lib/Sidebar.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
+  import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
   const wordSet = new Set(DAILY_WORD_LIST);
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  let foundWords = $state<string[]>([]);
+  // Filter against wordSet, not just the date: a mid-day redeploy could change
+  // DAILY_WORD_LIST, and localStorage is untrusted external state generally.
+  let foundWords = $state<string[]>([...new Set(loadFoundWords().filter((w) => wordSet.has(w)))]);
+
+  $effect(() => {
+    saveFoundWords(foundWords);
+  });
+
   let rejectedToken = $state(0);
   let resultToken = $state(0);
   let lastResultWord = $state('');
