@@ -5,13 +5,19 @@
   import Sidebar from './lib/Sidebar.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
+  import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
   const wordSet = new Set(DAILY_WORD_LIST);
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  let foundWords = $state<string[]>([]);
+  let foundWords = $state<string[]>(loadFoundWords());
+
+  $effect(() => {
+    saveFoundWords(foundWords);
+  });
+
   let rejectedToken = $state(0);
   let resultToken = $state(0);
   let lastResultWord = $state('');
