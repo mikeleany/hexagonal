@@ -5,6 +5,13 @@
   import Sidebar from './lib/Sidebar.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
+  import {
+    getWordScore,
+    isCommonWordCompletionReached,
+    isAllWordsCompletionReached,
+    COMMON_WORD_COMPLETION_BONUS,
+    ALL_WORDS_COMPLETION_BONUS,
+  } from './lib/scoring';
 
   const wordSet = new Set(DAILY_WORD_LIST);
 
@@ -17,6 +24,10 @@
   let lastResultWord = $state('');
   let lastResultAccepted = $state(false);
 
+  let score = $state(0);
+  let commonBonusAwarded = $state(false);
+  let allBonusAwarded = $state(false);
+
   function handleSelectionChange(path: Tile[]) {
     selectionPath = path;
   }
@@ -28,7 +39,18 @@
     lastResultAccepted = isValid;
     resultToken += 1;
     if (isValid) {
-      if (!foundWords.includes(word)) foundWords = [...foundWords, word];
+      if (!foundWords.includes(word)) {
+        foundWords = [...foundWords, word];
+        score += getWordScore(word);
+        if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
+          score += COMMON_WORD_COMPLETION_BONUS;
+          commonBonusAwarded = true;
+        }
+        if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
+          score += ALL_WORDS_COMPLETION_BONUS;
+          allBonusAwarded = true;
+        }
+      }
     } else {
       rejectedToken += 1;
     }
@@ -36,7 +58,7 @@
 </script>
 
 <main>
-  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} />
+  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} {score} />
   <div class="play-area">
     <div class="board-column">
       <SelectionDisplay

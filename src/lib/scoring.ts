@@ -1,4 +1,4 @@
-import { loadWordRarities } from './dictionary';
+import { loadWordRarities } from "./dictionary";
 
 /**
  * PLACEHOLDER CONSTANTS — chosen from the rarity-percentile stats printed by
@@ -12,8 +12,8 @@ import { loadWordRarities } from './dictionary';
  */
 export const RARITY_THRESHOLD = 0.7;
 export const RARITY_K = 2.4;
-export const COMMON_WORD_COMPLETION_BONUS = 150;
-export const ALL_WORDS_COMPLETION_BONUS = 300;
+export const COMMON_WORD_COMPLETION_BONUS = 1500;
+export const ALL_WORDS_COMPLETION_BONUS = 3000;
 
 const RARITY = loadWordRarities();
 
@@ -28,8 +28,10 @@ function getRarity(word: string): number {
 export function getWordScore(word: string): number {
   const length = word.length;
   const rarity = getRarity(word);
-  const multiplier = 1 + Math.max(0, RARITY_K * (rarity - RARITY_THRESHOLD)) * Math.log10(length);
-  return length * multiplier;
+  const multiplier =
+    1 +
+    Math.max(0, RARITY_K * (rarity - RARITY_THRESHOLD)) * Math.log10(length);
+  return Math.round(10 * length * multiplier);
 }
 
 /** Words in `wordList` at or below the commonality threshold. */
