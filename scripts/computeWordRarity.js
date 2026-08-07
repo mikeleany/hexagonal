@@ -9,6 +9,10 @@
 // Words not found in the corpus get rarity = 1.0 directly (treated as
 // maximally rare) rather than being run through the normalization formula.
 //
+// TODO(data-source): Norvig's corpus only covers 45.6% of ENABLE1 - see
+// https://github.com/mikeleany/hexagonal/issues/11 for the coverage gap
+// and other reasons this data source is a deferred v1 decision.
+//
 // Usage: node scripts/computeWordRarity.js
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
