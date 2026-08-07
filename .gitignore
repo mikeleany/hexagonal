@@ -27,3 +27,6 @@ dist-ssr
 .claude/settings.local.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+
+# Precompute script cache/scratch (see scripts/computeWordRarity.js)
+.cache/
