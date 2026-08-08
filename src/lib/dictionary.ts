@@ -23,10 +23,18 @@ type RarityEntry = { word: string; rarity: number };
 function parseWordRarityFile(raw: string): RarityEntry[] {
   const entries: RarityEntry[] = [];
   for (const line of raw.trimEnd().split(/\r?\n/)) {
-    const [rawWord, rawRarity] = line.split('\t');
+    const columns = line.split('\t');
+    const [rawWord, rawRarity] = columns;
     const word = rawWord?.trim().toLowerCase();
     const rarity = Number(rawRarity);
-    if (!word || !/^[a-z]+$/.test(word) || !Number.isFinite(rarity) || rarity < 0 || rarity > 1) {
+    if (
+      columns.length !== 2 ||
+      !word ||
+      !/^[a-z]+$/.test(word) ||
+      !Number.isFinite(rarity) ||
+      rarity < 0 ||
+      rarity > 1
+    ) {
       throw new Error(`wordRarity.txt: malformed line: ${JSON.stringify(line)}`);
     }
     entries.push({ word, rarity });

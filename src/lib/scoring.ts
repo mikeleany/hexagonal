@@ -24,7 +24,7 @@ function getRarity(word: string): number {
   return RARITY.get(word.toLowerCase()) ?? 1.0;
 }
 
-/** score(word) = length * (1 + max(0, k * (rarity - threshold)) * log10(length)) */
+/** score(word) = round(10 * length * (1 + max(0, k * (rarity - threshold)) * log10(length))) */
 export function getWordScore(word: string): number {
   const length = word.length;
   const rarity = getRarity(word);
@@ -55,7 +55,9 @@ export function isAllWordsCompletionReached(
   foundWords: readonly string[],
   wordList: readonly string[],
 ): boolean {
-  return wordList.length > 0 && foundWords.length === wordList.length;
+  if (wordList.length === 0) return false;
+  const foundLower = new Set(foundWords.map((word) => word.toLowerCase()));
+  return wordList.every((word) => foundLower.has(word.toLowerCase()));
 }
 
 export type ScoringState = {
