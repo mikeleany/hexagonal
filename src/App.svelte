@@ -15,14 +15,25 @@
   } from './lib/scoring';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
-  const wordSet = new Set(DAILY_WORD_LIST);
+  // Case-insensitive lookup from a submitted word to its canonical casing in
+  // DAILY_WORD_LIST (matches the dictionary source, not the uppercase tiles
+  // submissions are built from — see handleWordSubmit).
+  const wordMap = new Map(DAILY_WORD_LIST.map((w) => [w.toLowerCase(), w]));
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  // Filter against wordSet, not just the date: a mid-day redeploy could change
+  // Filter against wordMap, not just the date: a mid-day redeploy could change
   // DAILY_WORD_LIST, and localStorage is untrusted external state generally.
-  let foundWords = $state<string[]>([...new Set(loadFoundWords().filter((w) => wordSet.has(w)))]);
+  // Also canonicalizes casing, in case progress was saved before DAILY_WORD_LIST's
+  // casing matched the dictionary.
+  let foundWords = $state<string[]>([
+    ...new Set(
+      loadFoundWords()
+        .map((w) => wordMap.get(w.toLowerCase()))
+        .filter((w): w is string => w !== undefined),
+    ),
+  ]);
 
   // Seed from any restored progress so a returning player's score/bonus
   // state reflects prior progress immediately, not just their next
@@ -49,14 +60,14 @@
 
   function handleWordSubmit(submission: WordSubmission) {
     const { word } = submission;
-    const isValid = wordSet.has(word);
+    const canonical = wordMap.get(word.toLowerCase());
     lastResultWord = word;
-    lastResultAccepted = isValid;
+    lastResultAccepted = canonical !== undefined;
     resultToken += 1;
-    if (isValid) {
-      if (!foundWords.includes(word)) {
-        foundWords = [...foundWords, word];
-        score += getWordScore(word);
+    if (canonical !== undefined) {
+      if (!foundWords.includes(canonical)) {
+        foundWords = [...foundWords, canonical];
+        score += getWordScore(canonical);
         if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
           score += COMMON_WORD_COMPLETION_BONUS;
           commonBonusAwarded = true;
