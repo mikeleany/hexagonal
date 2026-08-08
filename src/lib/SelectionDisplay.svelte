@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getWordScore } from "./scoring";
+  import { getWordScore, isRareWord } from "./scoring";
 
   let {
     liveLetters,
@@ -51,6 +51,7 @@
   let displayText = $derived(liveLetters.length > 0 ? liveLetters : linger ? heldText : "");
   let showResultColor = $derived(liveLetters.length === 0 && linger);
   let showScore = $derived(showResultColor && resultState === "accepted");
+  let showRareStar = $derived(showScore && isRareWord(resultWord));
   let wordScore = $derived(getWordScore(resultWord));
 </script>
 
@@ -61,7 +62,7 @@
     class:rejected={showResultColor && resultState === "rejected"}
     class:duplicate={showResultColor && resultState === "duplicate"}
   >
-    {displayText}{#if showScore}&nbsp;+{wordScore}{/if}
+    {#if showRareStar}★&nbsp;{/if}{displayText}{#if showScore}&nbsp;+{wordScore}{/if}
   </span>
 </div>
 

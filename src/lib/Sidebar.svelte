@@ -1,5 +1,6 @@
 <script lang="ts">
   import { groupWordsByLength } from './wordGrouping';
+  import { isRareWord } from './scoring';
 
   let { wordList, foundWords }: { wordList: readonly string[]; foundWords: readonly string[] } =
     $props();
@@ -25,7 +26,7 @@
           </div>
           <ul>
             {#each group.found as word (word)}
-              <li>{word}</li>
+              <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
             {/each}
           </ul>
         </div>
@@ -33,7 +34,7 @@
     {:else}
       <ul>
         {#each flatFound as word (word)}
-          <li>{word}</li>
+          <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
         {/each}
       </ul>
     {/if}
@@ -86,5 +87,9 @@
   li {
     padding: 0.15em 0;
     break-inside: avoid;
+  }
+
+  li.rare {
+    color: #f4d35e;
   }
 </style>
