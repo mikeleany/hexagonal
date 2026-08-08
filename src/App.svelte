@@ -52,7 +52,7 @@
   let rejectedToken = $state(0);
   let resultToken = $state(0);
   let lastResultWord = $state('');
-  let lastResultAccepted = $state(false);
+  let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
 
   function handleSelectionChange(path: Tile[]) {
     selectionPath = path;
@@ -62,23 +62,24 @@
     const { word } = submission;
     const canonical = wordMap.get(word.toLowerCase());
     lastResultWord = word;
-    lastResultAccepted = canonical !== undefined;
     resultToken += 1;
-    if (canonical !== undefined) {
-      if (!foundWords.includes(canonical)) {
-        foundWords = [...foundWords, canonical];
-        score += getWordScore(canonical);
-        if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
-          score += COMMON_WORD_COMPLETION_BONUS;
-          commonBonusAwarded = true;
-        }
-        if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
-          score += ALL_WORDS_COMPLETION_BONUS;
-          allBonusAwarded = true;
-        }
-      }
-    } else {
+    if (canonical === undefined) {
+      lastResultState = 'rejected';
       rejectedToken += 1;
+    } else if (foundWords.includes(canonical)) {
+      lastResultState = 'duplicate';
+    } else {
+      lastResultState = 'accepted';
+      foundWords = [...foundWords, canonical];
+      score += getWordScore(canonical);
+      if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
+        score += COMMON_WORD_COMPLETION_BONUS;
+        commonBonusAwarded = true;
+      }
+      if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
+        score += ALL_WORDS_COMPLETION_BONUS;
+        allBonusAwarded = true;
+      }
     }
   }
 </script>
@@ -90,7 +91,7 @@
       <SelectionDisplay
         {liveLetters}
         resultWord={lastResultWord}
-        resultAccepted={lastResultAccepted}
+        resultState={lastResultState}
         {resultToken}
       />
       <div class="grid-wrap">
