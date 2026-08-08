@@ -57,3 +57,25 @@ export function isAllWordsCompletionReached(
 ): boolean {
   return wordList.length > 0 && foundWords.length === wordList.length;
 }
+
+export type ScoringState = {
+  score: number;
+  commonWordsComplete: boolean;
+  allWordsComplete: boolean;
+};
+
+/** Sums every found word's score and checks both completion bonuses in one
+ * pass. Used once on load to seed state from restored `foundWords` — not
+ * called again on every submission, since `App.svelte` keeps bookkeeping
+ * score/bonus state incrementally from there. */
+export function getScoringState(
+  foundWords: readonly string[],
+  wordList: readonly string[],
+): ScoringState {
+  const commonWordsComplete = isCommonWordCompletionReached(foundWords, wordList);
+  const allWordsComplete = isAllWordsCompletionReached(foundWords, wordList);
+  let score = foundWords.reduce((sum, word) => sum + getWordScore(word), 0);
+  if (commonWordsComplete) score += COMMON_WORD_COMPLETION_BONUS;
+  if (allWordsComplete) score += ALL_WORDS_COMPLETION_BONUS;
+  return { score, commonWordsComplete, allWordsComplete };
+}
