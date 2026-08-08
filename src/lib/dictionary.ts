@@ -12,18 +12,24 @@ type RarityEntry = { word: string; rarity: number };
 /**
  * wordRarity.txt (see scripts/computeWordRarity.js) is enable1.txt with a
  * precomputed rarity value appended to each line, in the same order. It
- * supersedes enable1.txt as the bundled data source, but preserves its
- * word set, order, and casing exactly.
+ * supersedes enable1.txt as the bundled data source, and preserves its
+ * word set and order exactly. Words are normalized to lowercase here,
+ * which is a no-op today since enable1.txt is already all-lowercase.
+ *
+ * Throws on any malformed line rather than silently dropping it: board
+ * generation is seeded and indexes into this word list, so a silently
+ * shrunk dictionary could change puzzles in a hard-to-debug way.
  */
 function parseWordRarityFile(raw: string): RarityEntry[] {
   const entries: RarityEntry[] = [];
-  for (const line of raw.split(/\r?\n/)) {
+  for (const line of raw.trimEnd().split(/\r?\n/)) {
     const [rawWord, rawRarity] = line.split('\t');
     const word = rawWord?.trim().toLowerCase();
     const rarity = Number(rawRarity);
-    if (word && /^[a-z]+$/.test(word) && Number.isFinite(rarity)) {
-      entries.push({ word, rarity });
+    if (!word || !/^[a-z]+$/.test(word) || !Number.isFinite(rarity) || rarity < 0 || rarity > 1) {
+      throw new Error(`wordRarity.txt: malformed line: ${JSON.stringify(line)}`);
     }
+    entries.push({ word, rarity });
   }
   return entries;
 }

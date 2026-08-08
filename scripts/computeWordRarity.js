@@ -60,8 +60,9 @@ function parseNorvigCorpus(raw) {
   return counts;
 }
 
-// Mirrors dictionary.ts's loadFullDictionary() parse exactly. Must stay in
-// sync with that function if its filtering logic ever changes.
+// Applies the same lowercase + /^[a-z]+$/ filtering that dictionary.ts's
+// parseWordRarityFile() applies when reading this script's output. Must
+// stay in sync with that function if its filtering logic ever changes.
 function loadEnable1Words() {
   const raw = readFileSync(ENABLE1_PATH, 'utf-8');
   return raw
@@ -122,9 +123,20 @@ async function main() {
     }
   }
 
+  if (matched.length === 0) {
+    throw new Error('No dictionary words matched the Norvig corpus — check the corpus format.');
+  }
+
   const matchedCounts = matched.map((e) => e.count);
-  const minCount = Math.min(...matchedCounts);
-  const maxCount = Math.max(...matchedCounts);
+  // Avoid Math.min(...matchedCounts)/Math.max(...matchedCounts): spreading
+  // tens of thousands of arguments into a call relies on the engine's
+  // argument-count limit, which isn't guaranteed across environments.
+  let minCount = Infinity;
+  let maxCount = -Infinity;
+  for (const count of matchedCounts) {
+    if (count < minCount) minCount = count;
+    if (count > maxCount) maxCount = count;
+  }
   const logMin = Math.log(minCount);
   const logMax = Math.log(maxCount);
   const logRange = logMax - logMin;

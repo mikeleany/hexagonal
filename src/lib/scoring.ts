@@ -24,7 +24,7 @@ function getRarity(word: string): number {
   return RARITY.get(word.toLowerCase()) ?? 1.0;
 }
 
-/** score(word) = length * (1 + max(0, k * (rarity - threshold)) * log(length)) */
+/** score(word) = length * (1 + max(0, k * (rarity - threshold)) * log10(length)) */
 export function getWordScore(word: string): number {
   const length = word.length;
   const rarity = getRarity(word);
