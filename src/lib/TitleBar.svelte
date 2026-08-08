@@ -1,10 +1,15 @@
 <script lang="ts">
-  let { foundCount, totalCount }: { foundCount: number; totalCount: number } = $props();
+  let {
+    foundCount,
+    totalCount,
+    score,
+  }: { foundCount: number; totalCount: number; score: number } = $props();
 </script>
 
 <div class="titlebar">
   <span class="title">Hexagonal</span>
   <span class="status">Found {foundCount} of {totalCount} words</span>
+  <span class="status">Score: {score.toLocaleString()}</span>
 </div>
 
 <style>

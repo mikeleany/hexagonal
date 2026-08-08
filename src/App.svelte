@@ -5,6 +5,14 @@
   import Sidebar from './lib/Sidebar.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
+  import {
+    getWordScore,
+    getScoringState,
+    isCommonWordCompletionReached,
+    isAllWordsCompletionReached,
+    COMMON_WORD_COMPLETION_BONUS,
+    ALL_WORDS_COMPLETION_BONUS,
+  } from './lib/scoring';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
   const wordSet = new Set(DAILY_WORD_LIST);
@@ -15,6 +23,16 @@
   // Filter against wordSet, not just the date: a mid-day redeploy could change
   // DAILY_WORD_LIST, and localStorage is untrusted external state generally.
   let foundWords = $state<string[]>([...new Set(loadFoundWords().filter((w) => wordSet.has(w)))]);
+
+  // Seed from any restored progress so a returning player's score/bonus
+  // state reflects prior progress immediately, not just their next
+  // submission. handleWordSubmit below keeps updating these incrementally,
+  // so only the initial value of foundWords should be captured here.
+  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
+  const initialScoring = getScoringState(foundWords, DAILY_WORD_LIST);
+  let score = $state(initialScoring.score);
+  let commonBonusAwarded = $state(initialScoring.commonWordsComplete);
+  let allBonusAwarded = $state(initialScoring.allWordsComplete);
 
   $effect(() => {
     saveFoundWords(foundWords);
@@ -36,7 +54,18 @@
     lastResultAccepted = isValid;
     resultToken += 1;
     if (isValid) {
-      if (!foundWords.includes(word)) foundWords = [...foundWords, word];
+      if (!foundWords.includes(word)) {
+        foundWords = [...foundWords, word];
+        score += getWordScore(word);
+        if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
+          score += COMMON_WORD_COMPLETION_BONUS;
+          commonBonusAwarded = true;
+        }
+        if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
+          score += ALL_WORDS_COMPLETION_BONUS;
+          allBonusAwarded = true;
+        }
+      }
     } else {
       rejectedToken += 1;
     }
@@ -44,7 +73,7 @@
 </script>
 
 <main>
-  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} />
+  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} {score} />
   <div class="play-area">
     <div class="board-column">
       <SelectionDisplay
