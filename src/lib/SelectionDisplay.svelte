@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getWordScore } from "./scoring";
+
   let {
     liveLetters,
     resultWord,
@@ -48,6 +50,8 @@
   let heldText = $derived(resultState === "duplicate" ? "Already Found" : resultWord);
   let displayText = $derived(liveLetters.length > 0 ? liveLetters : linger ? heldText : "");
   let showResultColor = $derived(liveLetters.length === 0 && linger);
+  let showScore = $derived(showResultColor && resultState === "accepted");
+  let wordScore = $derived(getWordScore(resultWord));
 </script>
 
 <div class="selection-display">
@@ -57,7 +61,7 @@
     class:rejected={showResultColor && resultState === "rejected"}
     class:duplicate={showResultColor && resultState === "duplicate"}
   >
-    {displayText}
+    {displayText}{#if showScore}&nbsp;+{wordScore}{/if}
   </span>
 </div>
 
