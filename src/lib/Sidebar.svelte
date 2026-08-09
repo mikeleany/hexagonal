@@ -49,7 +49,8 @@
             )}ch"
           >
             {#each group.found as word (word)}
-              <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
+              {@const rare = isRareWord(word)}
+              <li class:rare>{rare ? '★ ' : ''}{word}</li>
             {/each}
           </ul>
         </div>
@@ -57,7 +58,8 @@
     {:else}
       <ul style="column-width: {columnWidthCh(maxWordLength, flatHasRare)}ch">
         {#each flatFound as word (word)}
-          <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
+          {@const rare = isRareWord(word)}
+          <li class:rare>{rare ? '★ ' : ''}{word}</li>
         {/each}
       </ul>
     {/if}

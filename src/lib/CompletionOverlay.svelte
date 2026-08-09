@@ -5,8 +5,15 @@
     onDismiss,
   }: { bonusAmount: number; finalScore: number; onDismiss: () => void } = $props();
 
+  // Moves focus into the overlay as soon as it mounts, so keyboard users
+  // don't have to blindly tab to find it before they can dismiss it.
+  let overlayEl: HTMLDivElement | undefined = $state();
+  $effect(() => {
+    overlayEl?.focus();
+  });
+
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter" || e.key === " ") {
+    if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
       e.preventDefault();
       onDismiss();
     }
@@ -14,16 +21,18 @@
 </script>
 
 <div
+  bind:this={overlayEl}
   class="overlay"
-  role="button"
-  tabindex="0"
-  aria-label="Dismiss"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="completion-headline"
+  tabindex="-1"
   onclick={onDismiss}
   onkeydown={handleKeydown}
 >
   <div class="card">
     <div class="star">★</div>
-    <div class="headline">All words found!</div>
+    <div class="headline" id="completion-headline">All words found!</div>
     <div class="detail">+{bonusAmount.toLocaleString()} bonus &middot; final score {finalScore.toLocaleString()}</div>
   </div>
 </div>
