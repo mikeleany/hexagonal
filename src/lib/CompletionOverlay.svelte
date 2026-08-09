@@ -16,6 +16,14 @@
     if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
       e.preventDefault();
       onDismiss();
+      return;
+    }
+    // The overlay is the only focusable element it contains, so trap Tab
+    // here rather than letting focus escape to controls behind it (e.g.
+    // the sidebar's "Group by length" checkbox) -- otherwise this handler,
+    // which lives on the overlay, would stop receiving Escape/Enter/Space.
+    if (e.key === "Tab") {
+      e.preventDefault();
     }
   }
 </script>
