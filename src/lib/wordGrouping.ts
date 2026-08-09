@@ -12,6 +12,21 @@ export type WordLengthGroup = {
   commonTotalCount: number;
 };
 
+// wordList (DAILY_WORD_LIST) is a stable reference for the whole session, so
+// its alphabetized order is cached by reference rather than re-sorted on
+// every call -- unlike foundWords, which is small and changes every call
+// anyway, so isn't worth caching.
+const sortedWordListCache = new WeakMap<readonly string[], string[]>();
+
+function getSortedWordList(wordList: readonly string[]): string[] {
+  let sorted = sortedWordListCache.get(wordList);
+  if (!sorted) {
+    sorted = [...wordList].sort();
+    sortedWordListCache.set(wordList, sorted);
+  }
+  return sorted;
+}
+
 /**
  * All words to display, alphabetized. When `hintsEnabled` is false, only
  * found words are included (the pre-hints behavior). When true, every word
@@ -24,8 +39,8 @@ export function buildWordEntries(
   hintsEnabled: boolean,
 ): WordEntry[] {
   const foundSet = new Set(foundWords);
-  const words = hintsEnabled ? wordList : foundWords;
-  return [...words].sort().map((word) => ({ word, found: foundSet.has(word) }));
+  const words = hintsEnabled ? getSortedWordList(wordList) : [...foundWords].sort();
+  return words.map((word) => ({ word, found: foundSet.has(word) }));
 }
 
 /** Groups words by length, longest first; `entries` within each group is alphabetized. */
