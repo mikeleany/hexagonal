@@ -39,6 +39,11 @@ export function getCommonWords(wordList: readonly string[]): string[] {
   return wordList.filter((word) => getRarity(word) <= RARITY_THRESHOLD);
 }
 
+/** True for words rarer than the commonality threshold (the inverse of `getCommonWords`'s filter). */
+export function isRareWord(word: string): boolean {
+  return getRarity(word) > RARITY_THRESHOLD;
+}
+
 /** True once every common word in `wordList` has been found. */
 export function isCommonWordCompletionReached(
   foundWords: readonly string[],

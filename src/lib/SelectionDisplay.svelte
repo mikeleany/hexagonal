@@ -1,13 +1,15 @@
 <script lang="ts">
+  import { getWordScore, isRareWord } from "./scoring";
+
   let {
     liveLetters,
     resultWord,
-    resultAccepted,
+    resultState,
     resultToken,
   }: {
     liveLetters: string;
     resultWord: string;
-    resultAccepted: boolean;
+    resultState: "accepted" | "rejected" | "duplicate";
     resultToken: number;
   } = $props();
 
@@ -22,26 +24,45 @@
       previousResultToken = resultToken;
       linger = true;
       clearTimeout(lingerTimeoutId);
-      lingerTimeoutId = setTimeout(() => {
-        linger = false;
-      }, 300);
+      // Accepted words hold until the player's next selection begins (see the
+      // liveLetters effect below) instead of a fixed timeout, so there's
+      // always time to read them. Rejected/duplicate already grab attention
+      // via the shake or the "Already Found" text swap, so a short timeout
+      // is enough for those.
+      if (resultState !== "accepted") {
+        lingerTimeoutId = setTimeout(() => {
+          linger = false;
+        }, 500);
+      }
     }
     return () => clearTimeout(lingerTimeoutId);
   });
 
-  let displayText = $derived(
-    liveLetters.length > 0 ? liveLetters : linger ? resultWord : "",
-  );
+  // The player starting a new selection always dismisses whatever was
+  // lingering -- this is what actually clears an indefinitely-held
+  // accepted word once the player moves on.
+  $effect(() => {
+    if (liveLetters.length > 0) {
+      linger = false;
+    }
+  });
+
+  let heldText = $derived(resultState === "duplicate" ? "Already Found" : resultWord);
+  let displayText = $derived(liveLetters.length > 0 ? liveLetters : linger ? heldText : "");
   let showResultColor = $derived(liveLetters.length === 0 && linger);
+  let showScore = $derived(showResultColor && resultState === "accepted");
+  let showRareStar = $derived(showScore && isRareWord(resultWord));
+  let wordScore = $derived(getWordScore(resultWord));
 </script>
 
 <div class="selection-display">
   <span
     class="text"
-    class:accepted={showResultColor && resultAccepted}
-    class:rejected={showResultColor && !resultAccepted}
+    class:accepted={showResultColor && resultState === "accepted"}
+    class:rejected={showResultColor && resultState === "rejected"}
+    class:duplicate={showResultColor && resultState === "duplicate"}
   >
-    {displayText}
+    {#if showRareStar}★&nbsp;{/if}{displayText}{#if showScore}&nbsp;+{wordScore}{/if}
   </span>
 </div>
 
@@ -71,6 +92,10 @@
   .text.rejected {
     color: #e05555;
     animation: shake 0.3s ease-in-out;
+  }
+
+  .text.duplicate {
+    color: #f5f5f5;
   }
 
   @keyframes shake {

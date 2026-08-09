@@ -3,11 +3,13 @@
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
+  import CompletionOverlay from './lib/CompletionOverlay.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
   import {
     getWordScore,
     getScoringState,
+    getCommonWords,
     isCommonWordCompletionReached,
     isAllWordsCompletionReached,
     COMMON_WORD_COMPLETION_BONUS,
@@ -15,14 +17,27 @@
   } from './lib/scoring';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
-  const wordSet = new Set(DAILY_WORD_LIST);
+  // Case-insensitive lookup from a submitted word to its canonical casing in
+  // DAILY_WORD_LIST (matches the dictionary source, not the uppercase tiles
+  // submissions are built from — see handleWordSubmit).
+  const wordMap = new Map(DAILY_WORD_LIST.map((w) => [w.toLowerCase(), w]));
+  const commonWordSet = new Set(getCommonWords(DAILY_WORD_LIST));
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  // Filter against wordSet, not just the date: a mid-day redeploy could change
+  // Filter against wordMap, not just the date: a mid-day redeploy could change
   // DAILY_WORD_LIST, and localStorage is untrusted external state generally.
-  let foundWords = $state<string[]>([...new Set(loadFoundWords().filter((w) => wordSet.has(w)))]);
+  // Also canonicalizes casing, in case progress was saved before DAILY_WORD_LIST's
+  // casing matched the dictionary.
+  let foundWords = $state<string[]>([
+    ...new Set(
+      loadFoundWords()
+        .map((w) => wordMap.get(w.toLowerCase()))
+        .filter((w): w is string => w !== undefined),
+    ),
+  ]);
+  let commonFoundCount = $derived(foundWords.filter((w) => commonWordSet.has(w)).length);
 
   // Seed from any restored progress so a returning player's score/bonus
   // state reflects prior progress immediately, not just their next
@@ -41,7 +56,9 @@
   let rejectedToken = $state(0);
   let resultToken = $state(0);
   let lastResultWord = $state('');
-  let lastResultAccepted = $state(false);
+  let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
+  let commonBonusToken = $state(0);
+  let showCompletionOverlay = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
     selectionPath = path;
@@ -49,37 +66,50 @@
 
   function handleWordSubmit(submission: WordSubmission) {
     const { word } = submission;
-    const isValid = wordSet.has(word);
+    const canonical = wordMap.get(word.toLowerCase());
     lastResultWord = word;
-    lastResultAccepted = isValid;
     resultToken += 1;
-    if (isValid) {
-      if (!foundWords.includes(word)) {
-        foundWords = [...foundWords, word];
-        score += getWordScore(word);
-        if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
-          score += COMMON_WORD_COMPLETION_BONUS;
-          commonBonusAwarded = true;
-        }
-        if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
-          score += ALL_WORDS_COMPLETION_BONUS;
-          allBonusAwarded = true;
-        }
-      }
-    } else {
+    if (canonical === undefined) {
+      lastResultState = 'rejected';
       rejectedToken += 1;
+    } else if (foundWords.includes(canonical)) {
+      lastResultState = 'duplicate';
+    } else {
+      lastResultState = 'accepted';
+      foundWords = [...foundWords, canonical];
+      score += getWordScore(canonical);
+      if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
+        score += COMMON_WORD_COMPLETION_BONUS;
+        commonBonusAwarded = true;
+        commonBonusToken += 1;
+      }
+      if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
+        score += ALL_WORDS_COMPLETION_BONUS;
+        allBonusAwarded = true;
+        showCompletionOverlay = true;
+      }
     }
   }
 </script>
 
 <main>
-  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} {score} />
+  <TitleBar
+    {commonFoundCount}
+    commonTotalCount={commonWordSet.size}
+    foundCount={foundWords.length}
+    totalCount={DAILY_WORD_LIST.length}
+    {score}
+    {commonBonusToken}
+    {commonBonusAwarded}
+    {allBonusAwarded}
+    commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}
+  />
   <div class="play-area">
     <div class="board-column">
       <SelectionDisplay
         {liveLetters}
         resultWord={lastResultWord}
-        resultAccepted={lastResultAccepted}
+        resultState={lastResultState}
         {resultToken}
       />
       <div class="grid-wrap">
@@ -96,6 +126,14 @@
     </div>
   </div>
 </main>
+
+{#if showCompletionOverlay}
+  <CompletionOverlay
+    bonusAmount={ALL_WORDS_COMPLETION_BONUS}
+    finalScore={score}
+    onDismiss={() => (showCompletionOverlay = false)}
+  />
+{/if}
 
 <style>
   main {
@@ -132,12 +170,20 @@
     min-height: 0;
   }
 
+  /* Fixed (not viewport-scaled) width, wide enough that two side-by-side
+     19-letter word columns (22ch each, including the rare-word star prefix
+     allowance -- see Sidebar.svelte's RARE_PREFIX_CH) never overlap even
+     with the vertical scrollbar's gutter reserved: 2 * 22ch (176px) + 1em
+     gap (16px) + scrollbar gutter (15px) = 383px needed, plus margin. */
   .sidebar-wrap {
-    flex: 0 0 clamp(220px, 25vw, 320px);
+    flex: 0 0 410px;
+    min-width: 0;
     min-height: 0;
   }
 
-  @media (max-width: 700px) {
+  /* Threshold below which the 410px sidebar would take up more than 40%
+     of the viewport width. */
+  @media (max-width: calc(410px / 0.40)) {
     .play-area {
       flex-direction: column;
     }

@@ -33,7 +33,7 @@ export function solveBoard(
     }
     const word = wordSoFar + letter;
     if (child.isWord && word.length >= minLength && word.length <= maxLength) {
-      found.add(word.toUpperCase());
+      found.add(word);
     }
     if (word.length >= maxLength) {
       return;
