@@ -8,6 +8,7 @@
   import {
     getWordScore,
     getScoringState,
+    getCommonWords,
     isCommonWordCompletionReached,
     isAllWordsCompletionReached,
     COMMON_WORD_COMPLETION_BONUS,
@@ -19,6 +20,7 @@
   // DAILY_WORD_LIST (matches the dictionary source, not the uppercase tiles
   // submissions are built from — see handleWordSubmit).
   const wordMap = new Map(DAILY_WORD_LIST.map((w) => [w.toLowerCase(), w]));
+  const commonWordSet = new Set(getCommonWords(DAILY_WORD_LIST));
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
@@ -34,6 +36,7 @@
         .filter((w): w is string => w !== undefined),
     ),
   ]);
+  let commonFoundCount = $derived(foundWords.filter((w) => commonWordSet.has(w)).length);
 
   // Seed from any restored progress so a returning player's score/bonus
   // state reflects prior progress immediately, not just their next
@@ -85,7 +88,13 @@
 </script>
 
 <main>
-  <TitleBar foundCount={foundWords.length} totalCount={DAILY_WORD_LIST.length} {score} />
+  <TitleBar
+    {commonFoundCount}
+    commonTotalCount={commonWordSet.size}
+    foundCount={foundWords.length}
+    totalCount={DAILY_WORD_LIST.length}
+    {score}
+  />
   <div class="play-area">
     <div class="board-column">
       <SelectionDisplay

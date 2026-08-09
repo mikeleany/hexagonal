@@ -22,7 +22,8 @@
       {#each groups as group (group.length)}
         <div class="group">
           <div class="group-header">
-            {group.length} letters ({group.foundCount}/{group.totalCount})
+            {group.length} letters — {group.commonFoundCount}/{group.commonTotalCount} ({group.foundCount}/{group.totalCount}
+            total)
           </div>
           <ul>
             {#each group.found as word (word)}
