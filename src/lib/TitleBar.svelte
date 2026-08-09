@@ -6,6 +6,7 @@
     totalCount,
     score,
     commonBonusToken,
+    hintsAvailableToken,
     commonBonusAwarded,
     allBonusAwarded,
     commonBonusAmount,
@@ -16,13 +17,22 @@
     totalCount: number;
     score: number;
     commonBonusToken: number;
+    hintsAvailableToken: number;
     commonBonusAwarded: boolean;
     allBonusAwarded: boolean;
     commonBonusAmount: number;
   } = $props();
 
-  let showBonusBanner = $state(false);
-  let bonusBannerTimeoutId: ReturnType<typeof setTimeout> | undefined;
+  let bannerMessage = $state<string | null>(null);
+  let bannerTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  function flashBanner(message: string) {
+    bannerMessage = message;
+    clearTimeout(bannerTimeoutId);
+    bannerTimeoutId = setTimeout(() => {
+      bannerMessage = null;
+    }, 3000);
+  }
 
   // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
   // same rationale as HexGrid's previousRejectedToken (see HexGrid.svelte).
@@ -30,21 +40,28 @@
   $effect(() => {
     if (commonBonusToken !== previousCommonBonusToken) {
       previousCommonBonusToken = commonBonusToken;
-      showBonusBanner = true;
-      clearTimeout(bonusBannerTimeoutId);
-      bonusBannerTimeoutId = setTimeout(() => {
-        showBonusBanner = false;
-      }, 3000);
+      flashBanner(`★ Common words complete! +${commonBonusAmount.toLocaleString()}`);
     }
-    return () => clearTimeout(bonusBannerTimeoutId);
+    return () => clearTimeout(bannerTimeoutId);
+  });
+
+  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
+  // same rationale as previousCommonBonusToken above.
+  let previousHintsAvailableToken = hintsAvailableToken;
+  $effect(() => {
+    if (hintsAvailableToken !== previousHintsAvailableToken) {
+      previousHintsAvailableToken = hintsAvailableToken;
+      flashBanner('💡 Hints available!');
+    }
+    return () => clearTimeout(bannerTimeoutId);
   });
 </script>
 
 <div class="titlebar">
   <span class="title">Hexagonal</span>
   <div class="stats">
-    {#if showBonusBanner}
-      <div class="bonus-banner">★ Common words complete! +{commonBonusAmount.toLocaleString()}</div>
+    {#if bannerMessage}
+      <div class="bonus-banner">{bannerMessage}</div>
     {:else}
       <div class="status">
         Found {commonFoundCount} of {commonTotalCount} common words{#if commonBonusAwarded}<span

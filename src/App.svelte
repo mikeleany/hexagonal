@@ -12,6 +12,7 @@
     getCommonWords,
     isCommonWordCompletionReached,
     isAllWordsCompletionReached,
+    isHintsUnlockThresholdReached,
     COMMON_WORD_COMPLETION_BONUS,
     ALL_WORDS_COMPLETION_BONUS,
   } from './lib/scoring';
@@ -48,6 +49,11 @@
   let score = $state(initialScoring.score);
   let commonBonusAwarded = $state(initialScoring.commonWordsComplete);
   let allBonusAwarded = $state(initialScoring.allWordsComplete);
+  // Seeded silently, same rationale as commonBonusAwarded above -- a
+  // returning player who already crossed 10% shouldn't retroactively see
+  // the "hints available" banner on load.
+  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
+  let hintsUnlocked = $state(isHintsUnlockThresholdReached(foundWords, DAILY_WORD_LIST));
 
   $effect(() => {
     saveFoundWords(foundWords);
@@ -58,6 +64,7 @@
   let lastResultWord = $state('');
   let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
   let commonBonusToken = $state(0);
+  let hintsAvailableToken = $state(0);
   let showCompletionOverlay = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
@@ -78,15 +85,25 @@
       lastResultState = 'accepted';
       foundWords = [...foundWords, canonical];
       score += getWordScore(canonical);
+      let commonBonusJustFired = false;
       if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
         commonBonusToken += 1;
+        commonBonusJustFired = true;
       }
       if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
         score += ALL_WORDS_COMPLETION_BONUS;
         allBonusAwarded = true;
         showCompletionOverlay = true;
+      }
+      // If a single submission crosses both thresholds at once, the
+      // common-bonus banner (tied to a real score bonus) takes priority --
+      // the hints banner is skipped in that rare case, though hintsUnlocked
+      // still flips true either way so the checkbox unlocks regardless.
+      if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, DAILY_WORD_LIST)) {
+        hintsUnlocked = true;
+        if (!commonBonusJustFired) hintsAvailableToken += 1;
       }
     }
   }
@@ -100,6 +117,7 @@
     totalCount={DAILY_WORD_LIST.length}
     {score}
     {commonBonusToken}
+    {hintsAvailableToken}
     {commonBonusAwarded}
     {allBonusAwarded}
     commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}
