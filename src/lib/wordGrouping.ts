@@ -1,51 +1,81 @@
-import { getCommonWords } from './scoring';
+import { getCommonWords, isRareWord } from './scoring';
+
+export type WordEntry = { word: string; found: boolean };
 
 export type WordLengthGroup = {
   length: number;
-  found: string[];
+  entries: WordEntry[];
+  hasRare: boolean;
   foundCount: number;
   totalCount: number;
   commonFoundCount: number;
   commonTotalCount: number;
 };
 
-/** Groups words by length, longest first; `found` within each group is alphabetized. */
+/**
+ * All words to display, alphabetized. When `hintsEnabled` is false, only
+ * found words are included (the pre-hints behavior). When true, every word
+ * in `wordList` is included so unfound words can render as hint placeholders
+ * in their natural alphabetical position. `wordList` is assumed to already
+ * be alphabetized (guaranteed by wordSolver.ts's `solveBoard`, the source of
+ * DAILY_WORD_LIST) -- only `foundWords`, which arrives in discovery order,
+ * needs sorting here.
+ */
+export function buildWordEntries(
+  wordList: readonly string[],
+  foundWords: readonly string[],
+  hintsEnabled: boolean,
+): WordEntry[] {
+  const foundSet = new Set(foundWords);
+  const words = hintsEnabled ? wordList : [...foundWords].sort();
+  return words.map((word) => ({ word, found: foundSet.has(word) }));
+}
+
+/** Groups words by length, longest first; `entries` within each group is alphabetized. */
 export function groupWordsByLength(
   wordList: readonly string[],
   foundWords: readonly string[],
+  hintsEnabled = false,
 ): WordLengthGroup[] {
   const commonSet = new Set(getCommonWords(wordList));
 
   const totalByLength = new Map<number, number>();
   const commonTotalByLength = new Map<number, number>();
+  const hasRareByLength = new Map<number, boolean>();
   for (const word of wordList) {
     totalByLength.set(word.length, (totalByLength.get(word.length) ?? 0) + 1);
     if (commonSet.has(word)) {
       commonTotalByLength.set(word.length, (commonTotalByLength.get(word.length) ?? 0) + 1);
     }
+    if (isRareWord(word)) {
+      hasRareByLength.set(word.length, true);
+    }
   }
 
-  const foundByLength = new Map<number, string[]>();
+  const foundByLength = new Map<number, number>();
   const commonFoundByLength = new Map<number, number>();
   for (const word of foundWords) {
-    const found = foundByLength.get(word.length);
-    if (found) found.push(word);
-    else foundByLength.set(word.length, [word]);
+    foundByLength.set(word.length, (foundByLength.get(word.length) ?? 0) + 1);
     if (commonSet.has(word)) {
       commonFoundByLength.set(word.length, (commonFoundByLength.get(word.length) ?? 0) + 1);
     }
   }
 
+  const entriesByLength = new Map<number, WordEntry[]>();
+  for (const entry of buildWordEntries(wordList, foundWords, hintsEnabled)) {
+    const entries = entriesByLength.get(entry.word.length);
+    if (entries) entries.push(entry);
+    else entriesByLength.set(entry.word.length, [entry]);
+  }
+
   const lengths = [...totalByLength.keys()].sort((a, b) => b - a);
-  return lengths.map((length) => {
-    const found = (foundByLength.get(length) ?? []).sort();
-    return {
-      length,
-      found,
-      foundCount: found.length,
-      totalCount: totalByLength.get(length)!,
-      commonFoundCount: commonFoundByLength.get(length) ?? 0,
-      commonTotalCount: commonTotalByLength.get(length) ?? 0,
-    };
-  });
+  return lengths.map((length) => ({
+    length,
+    entries: entriesByLength.get(length) ?? [],
+    hasRare: hasRareByLength.get(length) ?? false,
+    foundCount: foundByLength.get(length) ?? 0,
+    totalCount: totalByLength.get(length)!,
+    commonFoundCount: commonFoundByLength.get(length) ?? 0,
+    commonTotalCount: commonTotalByLength.get(length) ?? 0,
+  }));
 }

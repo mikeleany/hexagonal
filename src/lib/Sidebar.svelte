@@ -1,30 +1,40 @@
 <script lang="ts">
-  import { groupWordsByLength } from './wordGrouping';
-  import { isRareWord } from './scoring';
+  import { groupWordsByLength, buildWordEntries, type WordEntry } from './wordGrouping';
+  import { isRareWord, getCommonWords, isHintsUnlockThresholdReached } from './scoring';
+  import { hintThreshold, hintString } from './hints';
 
   let { wordList, foundWords }: { wordList: readonly string[]; foundWords: readonly string[] } =
     $props();
 
   let grouped = $state(true);
+  // Never persisted -- hints are only shown when the player makes a
+  // conscious choice to enable them, each session.
+  let hintsEnabled = $state(false);
 
   // The star + non-breaking space prefix on rare words (~2.3ch in practice)
   // needs its own allowance beyond the 1ch general safety margin, or a
   // starred entry's column is sized as if the word had no prefix at all.
   const RARE_PREFIX_CH = 3;
 
-  let groups = $derived(groupWordsByLength(wordList, foundWords));
-  let flatFound = $derived([...foundWords].sort());
-  // Sizes the flat (ungrouped) view's column width to the longest *found*
-  // word, since that view mixes lengths and can't size per-group like the
-  // grouped view below. Deliberately uses foundWords, not wordList -- sizing
-  // against the puzzle's longest word overall (often the planted 19-letter
-  // word) would oversize every column even when nothing that long has been
-  // found yet, wasting space and forcing fewer columns than necessary.
-  let maxWordLength = $derived(Math.max(0, ...foundWords.map((w) => w.length)));
-  let flatHasRare = $derived(foundWords.some((w) => isRareWord(w)));
+  let commonWords = $derived(new Set(getCommonWords(wordList)));
+  let commonFoundCount = $derived(foundWords.filter((w) => commonWords.has(w)).length);
+  let hintsUnlocked = $derived(isHintsUnlockThresholdReached(foundWords, wordList));
+  let hintThresholdT = $derived(hintThreshold(commonFoundCount, commonWords.size));
+
+  let groups = $derived(groupWordsByLength(wordList, foundWords, hintsEnabled));
+  let flatEntries = $derived(buildWordEntries(wordList, foundWords, hintsEnabled));
+  // Sizes columns against the full solution (wordList), not just found
+  // words, so column widths never shift as the player finds more words --
+  // only window resizing should reflow the layout.
+  let maxWordLength = $derived(wordList.reduce((max, w) => Math.max(max, w.length), 0));
+  let flatHasRare = $derived(wordList.some((w) => isRareWord(w)));
 
   function columnWidthCh(length: number, hasRare: boolean): number {
     return length + (hasRare ? RARE_PREFIX_CH : 1);
+  }
+
+  function displayText(entry: WordEntry): string {
+    return entry.found ? entry.word : hintString(entry.word, hintThresholdT);
   }
 </script>
 
@@ -32,6 +42,10 @@
   <label class="toggle">
     <input type="checkbox" bind:checked={grouped} />
     Group by length
+  </label>
+  <label class="toggle" class:disabled={!hintsUnlocked}>
+    <input type="checkbox" bind:checked={hintsEnabled} disabled={!hintsUnlocked} />
+    Enable hints
   </label>
 
   <div class="word-list">
@@ -42,24 +56,19 @@
             {group.length} letters — {group.commonFoundCount}/{group.commonTotalCount} ({group.foundCount}/{group.totalCount}
             total)
           </div>
-          <ul
-            style="column-width: {columnWidthCh(
-              group.length,
-              group.found.some((w) => isRareWord(w)),
-            )}ch"
-          >
-            {#each group.found as word (word)}
-              {@const rare = isRareWord(word)}
-              <li class:rare>{rare ? '★ ' : ''}{word}</li>
+          <ul style="column-width: {columnWidthCh(group.length, group.hasRare)}ch">
+            {#each group.entries as entry (entry.word)}
+              {@const rare = isRareWord(entry.word)}
+              <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
             {/each}
           </ul>
         </div>
       {/each}
     {:else}
       <ul style="column-width: {columnWidthCh(maxWordLength, flatHasRare)}ch">
-        {#each flatFound as word (word)}
-          {@const rare = isRareWord(word)}
-          <li class:rare>{rare ? '★ ' : ''}{word}</li>
+        {#each flatEntries as entry (entry.word)}
+          {@const rare = isRareWord(entry.word)}
+          <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
         {/each}
       </ul>
     {/if}
@@ -82,6 +91,11 @@
     padding-bottom: 0.75em;
     cursor: pointer;
     user-select: none;
+  }
+
+  .toggle.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .word-list {
@@ -124,5 +138,9 @@
   li.rare {
     color: #f4d35e;
     opacity: 0.95;
+  }
+
+  li.unfound {
+    opacity: 0.5;
   }
 </style>
