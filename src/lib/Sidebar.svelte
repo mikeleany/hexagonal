@@ -26,7 +26,7 @@
   // Sizes columns against the full solution (wordList), not just found
   // words, so column widths never shift as the player finds more words --
   // only window resizing should reflow the layout.
-  let maxWordLength = $derived(Math.max(0, ...wordList.map((w) => w.length)));
+  let maxWordLength = $derived(wordList.reduce((max, w) => Math.max(max, w.length), 0));
   let flatHasRare = $derived(wordList.some((w) => isRareWord(w)));
 
   function columnWidthCh(length: number, hasRare: boolean): number {
