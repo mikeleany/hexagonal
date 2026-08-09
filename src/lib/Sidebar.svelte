@@ -14,10 +14,13 @@
 
   let groups = $derived(groupWordsByLength(wordList, foundWords));
   let flatFound = $derived([...foundWords].sort());
-  // Sizes the flat (ungrouped) view's column width to the longest word in the
-  // whole list, since that view mixes lengths and can't size per-group like
-  // the grouped view below.
-  let maxWordLength = $derived(Math.max(0, ...wordList.map((w) => w.length)));
+  // Sizes the flat (ungrouped) view's column width to the longest *found*
+  // word, since that view mixes lengths and can't size per-group like the
+  // grouped view below. Deliberately uses foundWords, not wordList -- sizing
+  // against the puzzle's longest word overall (often the planted 19-letter
+  // word) would oversize every column even when nothing that long has been
+  // found yet, wasting space and forcing fewer columns than necessary.
+  let maxWordLength = $derived(Math.max(0, ...foundWords.map((w) => w.length)));
   let flatHasRare = $derived(foundWords.some((w) => isRareWord(w)));
 
   function columnWidthCh(length: number, hasRare: boolean): number {
@@ -99,7 +102,7 @@
 
   .group-header {
     font-weight: 600;
-    opacity: 0.75;
+    opacity: 0.95;
     font-size: 0.9rem;
     margin-bottom: 0.25em;
   }
@@ -118,5 +121,6 @@
 
   li.rare {
     color: #f4d35e;
+    opacity: 0.95;
   }
 </style>

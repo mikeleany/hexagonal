@@ -171,14 +171,19 @@
   }
 
   /* Fixed (not viewport-scaled) width, wide enough that two side-by-side
-     19-letter word columns never overlap. */
+     19-letter word columns (22ch each, including the rare-word star prefix
+     allowance -- see Sidebar.svelte's RARE_PREFIX_CH) never overlap even
+     with the vertical scrollbar's gutter reserved: 2 * 22ch (176px) + 1em
+     gap (16px) + scrollbar gutter (15px) = 383px needed, plus margin. */
   .sidebar-wrap {
-    flex: 0 0 380px;
+    flex: 0 0 410px;
     min-width: 0;
     min-height: 0;
   }
 
-  @media (max-width: 700px) {
+  /* Threshold below which the 410px sidebar would take up more than 40%
+     of the viewport width. */
+  @media (max-width: calc(410px / 0.40)) {
     .play-area {
       flex-direction: column;
     }

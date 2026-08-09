@@ -78,13 +78,14 @@
   }
 
   .status {
+    font-weight: 600;
     font-size: 1.1rem;
     opacity: 0.85;
   }
 
   .substatus {
     font-size: 0.85rem;
-    opacity: 0.6;
+    opacity: 0.75;
   }
 
   .bonus-banner {
