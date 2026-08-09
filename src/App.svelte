@@ -3,6 +3,7 @@
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
+  import CompletionOverlay from './lib/CompletionOverlay.svelte';
   import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
   import {
@@ -56,6 +57,8 @@
   let resultToken = $state(0);
   let lastResultWord = $state('');
   let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
+  let commonBonusToken = $state(0);
+  let showCompletionOverlay = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
     selectionPath = path;
@@ -78,10 +81,12 @@
       if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
+        commonBonusToken += 1;
       }
       if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
         score += ALL_WORDS_COMPLETION_BONUS;
         allBonusAwarded = true;
+        showCompletionOverlay = true;
       }
     }
   }
@@ -94,6 +99,10 @@
     foundCount={foundWords.length}
     totalCount={DAILY_WORD_LIST.length}
     {score}
+    {commonBonusToken}
+    {commonBonusAwarded}
+    {allBonusAwarded}
+    commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}
   />
   <div class="play-area">
     <div class="board-column">
@@ -117,6 +126,14 @@
     </div>
   </div>
 </main>
+
+{#if showCompletionOverlay}
+  <CompletionOverlay
+    bonusAmount={ALL_WORDS_COMPLETION_BONUS}
+    finalScore={score}
+    onDismiss={() => (showCompletionOverlay = false)}
+  />
+{/if}
 
 <style>
   main {
