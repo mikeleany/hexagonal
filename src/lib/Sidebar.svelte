@@ -7,8 +7,22 @@
 
   let grouped = $state(true);
 
+  // The star + non-breaking space prefix on rare words (~2.3ch in practice)
+  // needs its own allowance beyond the 1ch general safety margin, or a
+  // starred entry's column is sized as if the word had no prefix at all.
+  const RARE_PREFIX_CH = 3;
+
   let groups = $derived(groupWordsByLength(wordList, foundWords));
   let flatFound = $derived([...foundWords].sort());
+  // Sizes the flat (ungrouped) view's column width to the longest word in the
+  // whole list, since that view mixes lengths and can't size per-group like
+  // the grouped view below.
+  let maxWordLength = $derived(Math.max(0, ...wordList.map((w) => w.length)));
+  let flatHasRare = $derived(foundWords.some((w) => isRareWord(w)));
+
+  function columnWidthCh(length: number, hasRare: boolean): number {
+    return length + (hasRare ? RARE_PREFIX_CH : 1);
+  }
 </script>
 
 <div class="sidebar">
@@ -25,7 +39,12 @@
             {group.length} letters — {group.commonFoundCount}/{group.commonTotalCount} ({group.foundCount}/{group.totalCount}
             total)
           </div>
-          <ul>
+          <ul
+            style="column-width: {columnWidthCh(
+              group.length,
+              group.found.some((w) => isRareWord(w)),
+            )}ch"
+          >
             {#each group.found as word (word)}
               <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
             {/each}
@@ -33,7 +52,7 @@
         </div>
       {/each}
     {:else}
-      <ul>
+      <ul style="column-width: {columnWidthCh(maxWordLength, flatHasRare)}ch">
         {#each flatFound as word (word)}
           <li class:rare={isRareWord(word)}>{isRareWord(word) ? '★ ' : ''}{word}</li>
         {/each}
@@ -64,6 +83,14 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* Reserves the vertical scrollbar's width whether or not it's actually
+       showing, so column widths are computed against a stable content width
+       instead of shifting once a scrollbar appears. */
+    scrollbar-gutter: stable;
+    /* Multi-column layout can still round a column a pixel or two past the
+       container edge; there's nothing meaningful to reach by scrolling
+       horizontally, so just clip it instead of showing a scrollbar. */
+    overflow-x: hidden;
   }
 
   .group {
@@ -81,7 +108,6 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    columns: 6em;
     column-gap: 1em;
   }
 

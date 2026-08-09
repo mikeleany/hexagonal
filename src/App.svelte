@@ -170,8 +170,11 @@
     min-height: 0;
   }
 
+  /* Fixed (not viewport-scaled) width, wide enough that two side-by-side
+     19-letter word columns never overlap. */
   .sidebar-wrap {
-    flex: 0 0 clamp(220px, 25vw, 320px);
+    flex: 0 0 380px;
+    min-width: 0;
     min-height: 0;
   }
 
