@@ -14,13 +14,13 @@ export const COMMON_WORD_COMPLETION_BONUS = 1500;
 export const ALL_WORDS_COMPLETION_BONUS = 3000;
 export const HINTS_UNLOCK_RATIO = 0.1;
 
-const RARITY = loadWordRarities();
+const RARE_BY_WORD = loadWordRarities();
 
 function isRare(word: string): boolean {
   // Defensive fallback only — every word ever scored comes from
   // DAILY_WORD_LIST, which is derived from this same rarity-backed
   // dictionary, so a miss here should never actually happen in practice.
-  return RARITY.get(word.toLowerCase()) ?? true;
+  return RARE_BY_WORD.get(word.toLowerCase()) ?? true;
 }
 
 /** score(word) = round(10 * length * (1 + (rare ? RARE_BONUS_K : 0) * log10(length))) */
