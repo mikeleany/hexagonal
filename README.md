@@ -8,7 +8,7 @@ Click and drag from tile to tile — each tile you drag across must be adjacent 
 
 ## Status
 
-This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction currently uses a temporary v1 strategy (plant one 19-letter dictionary word across the whole board) rather than the general multi-word placement algorithm that's planned for later; offensive-word filtering on the bundled dictionary is also not implemented yet. Both are flagged with TODOs in the code.
+This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction currently uses a temporary v1 strategy (plant one 19-letter dictionary word across the whole board) rather than the general multi-word placement algorithm that's planned for later; offensive-word filtering on the dictionary is also incomplete (SCOWL's own tagging excludes some profanity/slurs, but it's not a full blocklist). Both are flagged with TODOs in the code.
 
 ## Development
 
@@ -21,6 +21,8 @@ npm run build    # production build
 npm run preview  # preview a production build
 npm run check    # typecheck (svelte-check + tsc); the only correctness gate — there's no test suite or linter yet
 ```
+
+`dev`/`build`/`check` each regenerate the word list from SCOWL first; the first run needs network access and `make`, and takes roughly a minute (cached after that).
 
 Built with [Svelte 5](https://svelte.dev) (runes), TypeScript, and [Vite](https://vite.dev).
 

@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Generates a common/rare word-commonality split from SCOWL (Spell Checker
-Oriented Word Lists, https://github.com/en-wl/wordlist), as a candidate
-replacement for the enable1.txt + Norvig-corpus continuous rarity pipeline in
-scripts/computeWordRarity.js -- see
+"""Generates the game's dictionary from SCOWL (Spell Checker Oriented Word
+Lists, https://github.com/en-wl/wordlist): a full valid-word list plus a
+binary common/rare rarity tag per word, replacing the old enable1.txt +
+Norvig-corpus continuous rarity pipeline -- see
 https://github.com/mikeleany/hexagonal/issues/11.
 
-Unlike computeWordRarity.js's continuous 0..1 rarity score, this produces a
+Unlike the old pipeline's continuous 0..1 rarity score, this produces a
 binary common/rare tag from two SCOWL "size" levels. SCOWL's size levels are
 cumulative (a size-N query already includes everything from every smaller
 size), so a "valid" list at one size and a smaller "common" list at a lower
 size naturally nest, as long as valid-size >= common-size.
+
+This is a build-time dependency, not a standalone data tool: src/lib/
+dictionary.ts imports its output directly (see the Output section below), so
+it must run before `npm run dev`/`build`/`check` -- wired up via package.json
+'s predev/prebuild/precheck hooks.
 
 Uses SCOWL v2 (https://github.com/en-wl/wordlist, `v2` branch), not the older
 v1 tool (`mk-list`, e.g. what `apt install scowl` ships): v1 has no way to
@@ -41,13 +46,12 @@ Usage:
   python3 scripts/generateWordLists.py [--valid-size 80] [--common-size 50]
       [--valid-variant-level 6] [--common-variant-level 4]
 
-Output (all under .cache/scowl/, gitignored -- see computeWordRarity.js's
-.cache/ for the same not-vendoring-fetched-data precedent):
-  american-valid.size{V}-vl{VL}.txt       -- one word per line
-  american-common.size{C}-vl{CL}.txt      -- one word per line
-  american-commonality.valid-size{V}-vl{VL}.common-size{C}-vl{CL}.txt
-                                           -- "{word}\t{common|rare}" per
-                                              line, one line per valid word
+Output (all under .cache/scowl/, gitignored -- not committed, so anything
+that needs these files must generate them first):
+  valid.txt   -- the full valid-word list, one word per line
+  common.txt  -- the common-word subset, one word per line
+  words.txt   -- "{word}\t{common|rare}" per line, one line per valid word;
+                 this is the file dictionary.ts actually imports
 """
 
 import argparse
@@ -93,9 +97,7 @@ WO_USAGE_NOTES = "vulgar-1,offensive-1,offensive-2"
 
 VARIANT_LEVEL_CHOICES = range(0, 10)
 
-# Matches dictionary.ts's parseWordRarityFile() acceptance rule, so any
-# future comparison against the current enable1.txt-based pipeline is
-# apples-to-apples.
+# Matches dictionary.ts's word-validation rule for words.txt.
 WORD_RE = re.compile(r"^[a-z]+$")
 
 
@@ -205,28 +207,24 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    valid_path = OUTPUT_DIR / f"american-valid.size{args.valid_size}-vl{args.valid_variant_level}.txt"
+    valid_path = OUTPUT_DIR / "valid.txt"
     valid_path.write_text("\n".join(sorted(valid_set)) + "\n", encoding="utf-8")
 
-    common_path = OUTPUT_DIR / f"american-common.size{args.common_size}-vl{args.common_variant_level}.txt"
+    common_path = OUTPUT_DIR / "common.txt"
     common_path.write_text("\n".join(sorted(common_set)) + "\n", encoding="utf-8")
 
-    commonality_path = (
-        OUTPUT_DIR
-        / f"american-commonality.valid-size{args.valid_size}-vl{args.valid_variant_level}"
-          f".common-size{args.common_size}-vl{args.common_variant_level}.txt"
-    )
+    words_path = OUTPUT_DIR / "words.txt"
     lines = [
         f"{word}\t{'common' if word in common_set else 'rare'}"
         for word in sorted(valid_set)
     ]
-    commonality_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    words_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     rare_count = len(valid_set) - len(common_set)
     common_pct = 100 * len(common_set) / len(valid_set) if valid_set else 0
     print(f"\nWrote {len(valid_set)} words to {valid_path}")
     print(f"Wrote {len(common_set)} words to {common_path}")
-    print(f"Wrote {len(valid_set)} tagged entries to {commonality_path}")
+    print(f"Wrote {len(valid_set)} tagged entries to {words_path}")
     print(
         f"\n{len(common_set)} common / {rare_count} rare "
         f"({common_pct:.1f}% common) of {len(valid_set)} total words"

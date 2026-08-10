@@ -1,50 +1,46 @@
-import RAW_WORD_RARITY from './wordRarity.txt?raw';
+import RAW_WORDS from '../../.cache/scowl/words.txt?raw';
 
 /**
  * Tunable at runtime — the bundled dictionary itself is never pre-filtered,
- * so raising or lowering these never requires touching `wordRarity.txt`.
+ * so raising or lowering these never requires touching `words.txt`.
  */
 export const MIN_WORD_LENGTH = 3;
 export const MAX_WORD_LENGTH = 19;
 
-type RarityEntry = { word: string; rarity: number };
+type WordEntry = { word: string; rare: boolean };
 
 /**
- * wordRarity.txt (see scripts/computeWordRarity.js) is enable1.txt with a
- * precomputed rarity value appended to each line, in the same order. It
- * supersedes enable1.txt as the bundled data source, and preserves its
- * word set and order exactly. Words are normalized to lowercase here,
- * which is a no-op today since enable1.txt is already all-lowercase.
+ * words.txt (see scripts/generateWordLists.py) is a SCOWL-derived valid-word
+ * list with a binary common/rare rarity tag appended to each line. It's
+ * generated at dev/build/check time (via package.json's predev/prebuild/
+ * precheck hooks) into the gitignored .cache/scowl/, not bundled/checked in.
  *
  * Throws on any malformed line rather than silently dropping it: board
  * generation is seeded and indexes into this word list, so a silently
  * shrunk dictionary could change puzzles in a hard-to-debug way.
  */
-function parseWordRarityFile(raw: string): RarityEntry[] {
-  const entries: RarityEntry[] = [];
+function parseWordsFile(raw: string): WordEntry[] {
+  const entries: WordEntry[] = [];
   for (const line of raw.trimEnd().split(/\r?\n/)) {
     const columns = line.split('\t');
-    const [rawWord, rawRarity] = columns;
+    const [rawWord, rawTag] = columns;
     const word = rawWord?.trim().toLowerCase();
-    const rarity = Number(rawRarity);
     if (
       columns.length !== 2 ||
       !word ||
       !/^[a-z]+$/.test(word) ||
-      !Number.isFinite(rarity) ||
-      rarity < 0 ||
-      rarity > 1
+      (rawTag !== 'common' && rawTag !== 'rare')
     ) {
-      throw new Error(`wordRarity.txt: malformed line: ${JSON.stringify(line)}`);
+      throw new Error(`words.txt: malformed line: ${JSON.stringify(line)}`);
     }
-    entries.push({ word, rarity });
+    entries.push({ word, rare: rawTag === 'rare' });
   }
   return entries;
 }
 
-const ENTRIES: readonly RarityEntry[] = parseWordRarityFile(RAW_WORD_RARITY);
-const RARITY_BY_WORD: ReadonlyMap<string, number> = new Map(
-  ENTRIES.map((entry) => [entry.word, entry.rarity]),
+const ENTRIES: readonly WordEntry[] = parseWordsFile(RAW_WORDS);
+const RARE_BY_WORD: ReadonlyMap<string, boolean> = new Map(
+  ENTRIES.map((entry) => [entry.word, entry.rare]),
 );
 
 /** Parses the bundled word list into a full, unfiltered array. */
@@ -52,11 +48,13 @@ export function loadFullDictionary(): string[] {
   return ENTRIES.map((entry) => entry.word);
 }
 
-// TODO(offensive-words): the bundled word list carries no content
-// filtering. Before this is shown to real users, filter the words returned
-// here against a blocklist (or swap to a pre-vetted list) so offensive
-// words can never be planted on the board or accepted as a submission.
-// Deliberately deferred for this first cut.
+// TODO(offensive-words): generateWordLists.py excludes SCOWL's strongest
+// profanity/slur tags (vulgar-1, offensive-1, offensive-2), but that's a
+// partial improvement, not a complete blocklist — milder profanity and
+// words SCOWL doesn't tag at all still pass through. Before this is shown
+// to real users, filter the words returned here against a more complete
+// blocklist so offensive words can never be planted on the board or
+// accepted as a submission. Deliberately deferred for this cut.
 export function loadEligibleWords(
   minLength: number = MIN_WORD_LENGTH,
   maxLength: number = MAX_WORD_LENGTH,
@@ -66,7 +64,7 @@ export function loadEligibleWords(
   );
 }
 
-/** Rarity lookup (lowercase word -> 0..1, 0 = most common, 1 = most rare). */
-export function loadWordRarities(): ReadonlyMap<string, number> {
-  return RARITY_BY_WORD;
+/** Rarity lookup (lowercase word -> true if rare, false if common). */
+export function loadWordRarities(): ReadonlyMap<string, boolean> {
+  return RARE_BY_WORD;
 }

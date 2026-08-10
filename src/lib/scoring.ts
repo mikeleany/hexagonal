@@ -1,48 +1,43 @@
 import { loadWordRarities } from "./dictionary";
 
 /**
- * PLACEHOLDER CONSTANTS — chosen from the rarity-percentile stats printed by
- * scripts/computeWordRarity.js, not yet validated against real puzzle totals.
+ * PLACEHOLDER CONSTANT — reproduces the old continuous-rarity formula's
+ * bonus at rarity 1.0 (2.4 * (1.0 - 0.7) = 0.72) as a starting point for the
+ * binary common/rare model, not yet validated against real puzzle totals.
  * Revisit once we've checked what a full day's word list actually scores.
  *
- * RARITY_THRESHOLD is the rarity value at or below which a word is treated
- * as "common" (scores as pure length, no bonus). RARITY_K controls how
- * sharply the rarity bonus scales with word length once a word is rarer
- * than the threshold.
+ * RARE_BONUS_K controls how sharply the rare-word bonus scales with word
+ * length. Common words score as pure length, no bonus.
  */
-export const RARITY_THRESHOLD = 0.7;
-export const RARITY_K = 2.4;
+export const RARE_BONUS_K = 0.72;
 export const COMMON_WORD_COMPLETION_BONUS = 1500;
 export const ALL_WORDS_COMPLETION_BONUS = 3000;
 export const HINTS_UNLOCK_RATIO = 0.1;
 
 const RARITY = loadWordRarities();
 
-function getRarity(word: string): number {
+function isRare(word: string): boolean {
   // Defensive fallback only — every word ever scored comes from
   // DAILY_WORD_LIST, which is derived from this same rarity-backed
   // dictionary, so a miss here should never actually happen in practice.
-  return RARITY.get(word.toLowerCase()) ?? 1.0;
+  return RARITY.get(word.toLowerCase()) ?? true;
 }
 
-/** score(word) = round(10 * length * (1 + max(0, k * (rarity - threshold)) * log10(length))) */
+/** score(word) = round(10 * length * (1 + (rare ? RARE_BONUS_K : 0) * log10(length))) */
 export function getWordScore(word: string): number {
   const length = word.length;
-  const rarity = getRarity(word);
-  const multiplier =
-    1 +
-    Math.max(0, RARITY_K * (rarity - RARITY_THRESHOLD)) * Math.log10(length);
+  const multiplier = 1 + (isRare(word) ? RARE_BONUS_K : 0) * Math.log10(length);
   return Math.round(10 * length * multiplier);
 }
 
-/** Words in `wordList` at or below the commonality threshold. */
+/** Common (non-rare) words in `wordList`. */
 export function getCommonWords(wordList: readonly string[]): string[] {
-  return wordList.filter((word) => getRarity(word) <= RARITY_THRESHOLD);
+  return wordList.filter((word) => !isRare(word));
 }
 
-/** True for words rarer than the commonality threshold (the inverse of `getCommonWords`'s filter). */
+/** True for rare words (the inverse of `getCommonWords`'s filter). */
 export function isRareWord(word: string): boolean {
-  return getRarity(word) > RARITY_THRESHOLD;
+  return isRare(word);
 }
 
 /** True once every common word in `wordList` has been found. */
