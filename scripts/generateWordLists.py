@@ -32,11 +32,27 @@ with the `scowl word-list` tool using a filter recipe that excludes:
   - proper-noun-ish entries: names, places, surnames, trademarks,
     words that must be capitalized, demonyms (--wo-pos-classes)
   - the SCOWL "hacker" and "roman-numerals" categories (--categories '')
-  - the strongest profanity tier and both slur tiers, but NOT the milder
-    profanity tier (--wo-usage-notes) -- see
-    https://github.com/mikeleany/hexagonal/issues/6; this is a free
-    improvement over enable1.txt's current zero content filtering, but is
-    not a complete blocklist and does not close that issue on its own.
+
+Profanity/slur filtering (see https://github.com/mikeleany/hexagonal/issues/6)
+is deliberately NOT applied at query time above -- SCOWL's usage-note tiers
+are all-or-nothing per query, which leaves no way to exclude a tier but keep
+one specific word a user wants preserved (e.g. "fart", tagged under the
+milder `vulgar-3` tier alongside plenty of words that should stay excluded).
+Instead, filtering happens as a single combined step after the valid/common
+lists are generated:
+  1. Query SCOWL again, positively this time, for every word tagged
+     `vulgar-1`, `vulgar-3`, `offensive-1`, or `offensive-2` (the full set of
+     profanity/slur tiers -- see USAGE_NOTES_OFFENSIVE below).
+  2. Union that with an external blocklist: LDNOOBW's "List of Dirty,
+     Naughty, Obscene, and Otherwise Bad Words"
+     (https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words,
+     CC BY 4.0), included because SCOWL's own tagging alone was confirmed to
+     miss at least one clearly-vulgar word entirely.
+  3. Subtract scripts/wordWhitelist.txt, a small hand-maintained list of
+     words to keep despite being blocklisted.
+  4. Remove whatever's left from the valid/common word sets.
+This combined list is also written to .cache/scowl/filtered-offensive.txt
+(see Output below) so it can be reviewed and used to grow the whitelist.
 
 Requires `make` and `python3` on PATH (both used to build SCOWL's own
 database from its source; no pip installs needed for this script or for
@@ -46,12 +62,22 @@ Usage:
   python3 scripts/generateWordLists.py [--valid-size 80] [--common-size 50]
       [--valid-variant-level 6] [--common-variant-level 4]
 
+Inputs:
+  scripts/wordWhitelist.txt -- checked into git (unlike everything below,
+                                which is gitignored); one lowercase word per
+                                line, '#' starts an inline comment, blank
+                                lines ignored. Words to keep even though
+                                they'd otherwise be blocklisted.
+
 Output (all under .cache/scowl/, gitignored -- not committed, so anything
 that needs these files must generate them first):
-  valid.txt   -- the full valid-word list, one word per line
-  common.txt  -- the common-word subset, one word per line
-  words.txt   -- "{word}\t{common|rare}" per line, one line per valid word;
-                 this is the file dictionary.ts actually imports
+  valid.txt               -- the full valid-word list, one word per line
+  common.txt               -- the common-word subset, one word per line
+  words.txt                -- "{word}\t{common|rare}" per line, one line per
+                               valid word; this is the file dictionary.ts
+                               actually imports
+  filtered-offensive.txt   -- every word actually removed by the combined
+                               blocklist (post-whitelist), for review
 """
 
 import argparse
@@ -62,17 +88,30 @@ import sys
 import tarfile
 import urllib.request
 from pathlib import Path
+from typing import Sequence
 
 SCOWL_TAG = "rel-2026.02.25"
 SCOWL_TARBALL_URL = (
     f"https://github.com/en-wl/wordlist/archive/refs/tags/{SCOWL_TAG}.tar.gz"
 )
 
+# LDNOOBW has no tags/releases, so pin to a commit for reproducibility.
+LDNOOBW_COMMIT = "4638b970cb8d9d82789564fcba1f4a1eb508ff1a"
+LDNOOBW_URL = (
+    "https://raw.githubusercontent.com/LDNOOBW/"
+    f"List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/{LDNOOBW_COMMIT}/en"
+)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / ".cache"
 SCOWL_TARBALL = CACHE_DIR / f"wordlist-{SCOWL_TAG}.tar.gz"
 SCOWL_SRC_DIR = CACHE_DIR / f"wordlist-{SCOWL_TAG}"
+LDNOOBW_CACHE = CACHE_DIR / "ldnoobw" / f"{LDNOOBW_COMMIT}.txt"
 OUTPUT_DIR = CACHE_DIR / "scowl"
+WHITELIST_PATH = REPO_ROOT / "scripts" / "wordWhitelist.txt"
+
+# So a stalled connection fails loudly instead of hanging `npm run dev/build/check`.
+DOWNLOAD_TIMEOUT_SECONDS = 30
 
 # American only -- SCOWL's --spellings codes are single letters (A/B/Z/C/D);
 # dialect is a settled choice here, not exposed as a CLI flag.
@@ -89,11 +128,12 @@ WO_POS_CLASSES = "abbr,abbr?,name,name?,person,place,surname,trademark,upper,upp
 # prefixes/suffixes/roman-numerals, and multi-word fragments.
 WO_POS_CATEGORIES = "special,nonword,wordpart"
 
-# usage_note values for profanity/slurs. Deliberately excludes vulgar-3 (the
-# milder tier -- fart/crap/piss/arse/bugger etc.) per explicit product
-# decision; only the strongest profanity tier and both slur tiers are
-# dropped. Small/curated, not a complete blocklist -- see module docstring.
-WO_USAGE_NOTES = "vulgar-1,offensive-1,offensive-2"
+# usage_note values covering all of SCOWL's profanity/slur tiers, including
+# the milder vulgar-3 tier -- unlike the old query-time exclusion, this is
+# used as a *positive* filter (passed to run_word_list as --usage-notes, not
+# --wo-usage-notes) to build a combined blocklist after the fact, so
+# individual wanted words can be whitelisted back in. See module docstring.
+USAGE_NOTES_OFFENSIVE = "vulgar-1,vulgar-3,offensive-1,offensive-2"
 
 VARIANT_LEVEL_CHOICES = range(0, 10)
 
@@ -107,7 +147,7 @@ def fetch_scowl_tarball() -> None:
         return
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Downloading {SCOWL_TARBALL_URL} ...")
-    with urllib.request.urlopen(SCOWL_TARBALL_URL) as response, open(
+    with urllib.request.urlopen(SCOWL_TARBALL_URL, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, open(
         SCOWL_TARBALL, "wb"
     ) as f:
         shutil.copyfileobj(response, f)
@@ -144,7 +184,14 @@ def build_scowl_db(src_dir: Path) -> Path:
     return db_path
 
 
-def run_word_list(scowl_bin: Path, db_path: Path, size: int, variant_level: int) -> list[str]:
+def run_word_list(
+    scowl_bin: Path,
+    db_path: Path,
+    size: int,
+    variant_level: int,
+    *,
+    extra_args: Sequence[str] = (),
+) -> list[str]:
     cmd = [
         sys.executable, str(scowl_bin), "word-list",
         "--db", str(db_path),
@@ -152,7 +199,7 @@ def run_word_list(scowl_bin: Path, db_path: Path, size: int, variant_level: int)
         "--wo-pos-categories", WO_POS_CATEGORIES,
         "--wo-pos-classes", WO_POS_CLASSES,
         "--categories", "",
-        "--wo-usage-notes", WO_USAGE_NOTES,
+        *extra_args,
     ]
     result = subprocess.run(cmd, cwd=scowl_bin.parent, capture_output=True, text=True, check=True)
     words = []
@@ -171,6 +218,45 @@ def run_word_list(scowl_bin: Path, db_path: Path, size: int, variant_level: int)
             file=sys.stderr,
         )
     return sorted(set(words))
+
+
+def fetch_ldnoobw_wordlist() -> Path:
+    if LDNOOBW_CACHE.exists():
+        print(f"Using cached LDNOOBW word list at {LDNOOBW_CACHE}")
+        return LDNOOBW_CACHE
+    LDNOOBW_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Downloading {LDNOOBW_URL} ...")
+    with urllib.request.urlopen(LDNOOBW_URL, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, open(
+        LDNOOBW_CACHE, "wb"
+    ) as f:
+        shutil.copyfileobj(response, f)
+    print(f"Cached LDNOOBW word list to {LDNOOBW_CACHE}")
+    return LDNOOBW_CACHE
+
+
+def load_ldnoobw_blocklist(path: Path) -> set[str]:
+    """No regex filtering needed: multi-word phrases/leetspeak entries in
+    LDNOOBW's list can never match a single-word dictionary entry anyway, so
+    they're harmless to keep as-is rather than filtered out here."""
+    return {
+        entry
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if (entry := line.strip().lower())
+    }
+
+
+def load_whitelist(path: Path) -> set[str]:
+    """Words to keep even though they're blocklisted. Not required to be a
+    subset of the blocklist -- it's simply subtracted from it, the same
+    relationship the blocklist has to the word list."""
+    if not path.exists():
+        return set()
+    words = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        entry = line.split("#", 1)[0].strip().lower()
+        if entry:
+            words.add(entry)
+    return words
 
 
 def main() -> None:
@@ -205,6 +291,22 @@ def main() -> None:
             f"(expected common to be a subset of valid) e.g. {sorted(orphaned)[:10]}"
         )
 
+    print("Querying SCOWL-tagged offensive words ...")
+    scowl_offensive_words = set(run_word_list(
+        scowl_bin, db_path, args.valid_size, args.valid_variant_level,
+        extra_args=["--usage-notes", f"{USAGE_NOTES_OFFENSIVE},no-default"],
+    ))
+
+    print("Fetching LDNOOBW profanity blocklist ...")
+    ldnoobw_words = load_ldnoobw_blocklist(fetch_ldnoobw_wordlist())
+
+    whitelist = load_whitelist(WHITELIST_PATH)
+    blocklist = (scowl_offensive_words | ldnoobw_words) - whitelist
+    blocked_words = blocklist & valid_set
+
+    valid_set -= blocked_words
+    common_set -= blocked_words
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     valid_path = OUTPUT_DIR / "valid.txt"
@@ -219,6 +321,10 @@ def main() -> None:
         for word in sorted(valid_set)
     ]
     words_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    filtered_path = OUTPUT_DIR / "filtered-offensive.txt"
+    filtered_path.write_text("\n".join(sorted(blocked_words)) + "\n", encoding="utf-8")
+    print(f"Wrote {len(blocked_words)} filtered words to {filtered_path} for review")
 
     rare_count = len(valid_set) - len(common_set)
     common_pct = 100 * len(common_set) / len(valid_set) if valid_set else 0
