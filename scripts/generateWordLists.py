@@ -106,9 +106,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / ".cache"
 SCOWL_TARBALL = CACHE_DIR / f"wordlist-{SCOWL_TAG}.tar.gz"
 SCOWL_SRC_DIR = CACHE_DIR / f"wordlist-{SCOWL_TAG}"
-LDNOOBW_CACHE = CACHE_DIR / "ldnoobw" / "en.txt"
+LDNOOBW_CACHE = CACHE_DIR / "ldnoobw" / f"{LDNOOBW_COMMIT}.txt"
 OUTPUT_DIR = CACHE_DIR / "scowl"
 WHITELIST_PATH = REPO_ROOT / "scripts" / "wordWhitelist.txt"
+
+# So a stalled connection fails loudly instead of hanging `npm run dev/build/check`.
+DOWNLOAD_TIMEOUT_SECONDS = 30
 
 # American only -- SCOWL's --spellings codes are single letters (A/B/Z/C/D);
 # dialect is a settled choice here, not exposed as a CLI flag.
@@ -144,7 +147,7 @@ def fetch_scowl_tarball() -> None:
         return
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Downloading {SCOWL_TARBALL_URL} ...")
-    with urllib.request.urlopen(SCOWL_TARBALL_URL) as response, open(
+    with urllib.request.urlopen(SCOWL_TARBALL_URL, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, open(
         SCOWL_TARBALL, "wb"
     ) as f:
         shutil.copyfileobj(response, f)
@@ -223,7 +226,7 @@ def fetch_ldnoobw_wordlist() -> Path:
         return LDNOOBW_CACHE
     LDNOOBW_CACHE.parent.mkdir(parents=True, exist_ok=True)
     print(f"Downloading {LDNOOBW_URL} ...")
-    with urllib.request.urlopen(LDNOOBW_URL) as response, open(
+    with urllib.request.urlopen(LDNOOBW_URL, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, open(
         LDNOOBW_CACHE, "wb"
     ) as f:
         shutil.copyfileobj(response, f)
