@@ -4,7 +4,7 @@
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
   import CompletionOverlay from './lib/CompletionOverlay.svelte';
-  import { DAILY_TILES, DAILY_WORD_LIST } from './lib/dailyPuzzle';
+  import { DAILY_TILES, DAILY_WORD_LIST, DAILY_PUZZLE_ID } from './lib/dailyPuzzle';
   import type { Tile, WordSubmission } from './lib/hexGeometry';
   import {
     getWordScore,
@@ -27,13 +27,13 @@
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  // Filter against wordMap, not just the date: a mid-day redeploy could change
-  // DAILY_WORD_LIST, and localStorage is untrusted external state generally.
-  // Also canonicalizes casing, in case progress was saved before DAILY_WORD_LIST's
-  // casing matched the dictionary.
+  // Filter against wordMap, not just the puzzle id: a mid-day redeploy could
+  // change DAILY_WORD_LIST without changing the board, and localStorage is
+  // untrusted external state generally. Also canonicalizes casing, in case
+  // progress was saved before DAILY_WORD_LIST's casing matched the dictionary.
   let foundWords = $state<string[]>([
     ...new Set(
-      loadFoundWords()
+      loadFoundWords(DAILY_PUZZLE_ID)
         .map((w) => wordMap.get(w.toLowerCase()))
         .filter((w): w is string => w !== undefined),
     ),
@@ -56,7 +56,7 @@
   let hintsUnlocked = $state(isHintsUnlockThresholdReached(foundWords, DAILY_WORD_LIST));
 
   $effect(() => {
-    saveFoundWords(foundWords);
+    saveFoundWords(foundWords, DAILY_PUZZLE_ID);
   });
 
   let rejectedToken = $state(0);

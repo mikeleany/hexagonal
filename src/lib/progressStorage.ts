@@ -1,17 +1,15 @@
-import { getMountainTimeDateString } from './prng';
-
 const STORAGE_KEY = 'hexagonal-progress';
 
 type StoredProgress = {
-  date: string;
+  puzzleId: string;
   foundWords: string[];
 };
 
 function isStoredProgress(value: unknown): value is StoredProgress {
   if (typeof value !== 'object' || value === null) return false;
-  const { date, foundWords } = value as Record<string, unknown>;
+  const { puzzleId, foundWords } = value as Record<string, unknown>;
   return (
-    typeof date === 'string' &&
+    typeof puzzleId === 'string' &&
     Array.isArray(foundWords) &&
     foundWords.every((w) => typeof w === 'string')
   );
@@ -19,16 +17,17 @@ function isStoredProgress(value: unknown): value is StoredProgress {
 
 /**
  * Loads found words persisted from a previous session, discarding them if
- * they're from a previous Mountain Time calendar day (a new puzzle).
+ * they were recorded against a different puzzle (identified by its tile
+ * letters -- see dailyPuzzle.ts's DAILY_PUZZLE_ID).
  */
-export function loadFoundWords(date: Date = new Date()): string[] {
+export function loadFoundWords(puzzleId: string): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) return [];
 
     const parsed: unknown = JSON.parse(raw);
     if (!isStoredProgress(parsed)) return [];
-    if (parsed.date !== getMountainTimeDateString(date)) return [];
+    if (parsed.puzzleId !== puzzleId) return [];
 
     return parsed.foundWords;
   } catch {
@@ -36,13 +35,10 @@ export function loadFoundWords(date: Date = new Date()): string[] {
   }
 }
 
-/** Persists found words, tagged with today's Mountain Time calendar date. */
-export function saveFoundWords(foundWords: readonly string[], date: Date = new Date()): void {
+/** Persists found words, tagged with the current puzzle's id. */
+export function saveFoundWords(foundWords: readonly string[], puzzleId: string): void {
   try {
-    const progress: StoredProgress = {
-      date: getMountainTimeDateString(date),
-      foundWords: [...foundWords],
-    };
+    const progress: StoredProgress = { puzzleId, foundWords: [...foundWords] };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch {
     // Storage unavailable (e.g. private browsing, quota exceeded) — progress
