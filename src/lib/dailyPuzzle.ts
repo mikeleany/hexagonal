@@ -8,7 +8,18 @@ import { solveBoard } from './wordSolver';
 export type DailyPuzzle = {
   tiles: Tile[];
   wordList: string[];
+  puzzleId: string;
 };
+
+/**
+ * Identifies a puzzle by its tile letters in board order, so saved progress
+ * can be matched against the exact board it was recorded on rather than the
+ * calendar date -- which goes stale across a code update or a session left
+ * open past midnight (see progressStorage.ts).
+ */
+function puzzleIdForTiles(tiles: Tile[]): string {
+  return tiles.map((tile) => tile.letter).join('');
+}
 
 /**
  * Deterministically generates the puzzle for the given date (Mountain Time
@@ -22,9 +33,10 @@ export function generateDailyPuzzle(date: Date = new Date()): DailyPuzzle {
   const trie = buildTrie(eligibleWords);
   const wordList = solveBoard(tiles, trie, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
 
-  return { tiles, wordList };
+  return { tiles, wordList, puzzleId: puzzleIdForTiles(tiles) };
 }
 
 const puzzle = generateDailyPuzzle();
 export const DAILY_TILES: Tile[] = puzzle.tiles;
 export const DAILY_WORD_LIST: readonly string[] = puzzle.wordList;
+export const DAILY_PUZZLE_ID: string = puzzle.puzzleId;
