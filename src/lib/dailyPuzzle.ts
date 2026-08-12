@@ -12,13 +12,19 @@ export type DailyPuzzle = {
 };
 
 /**
- * Identifies a puzzle by its tile letters in board order, so saved progress
- * can be matched against the exact board it was recorded on rather than the
- * calendar date -- which goes stale across a code update or a session left
- * open past midnight (see progressStorage.ts).
+ * Identifies a puzzle by its tile letters, so saved progress can be matched
+ * against the exact board it was recorded on rather than the calendar date
+ * -- which goes stale across a code update or a session left open past
+ * midnight (see progressStorage.ts). Sorted by coordinate (not
+ * board-building order, e.g. the Hamiltonian path in boardConstruction.ts)
+ * so a future refactor of tile construction order can't change the id
+ * without actually changing the board.
  */
 function puzzleIdForTiles(tiles: Tile[]): string {
-  return tiles.map((tile) => tile.letter).join('');
+  return [...tiles]
+    .sort((a, b) => a.q - b.q || a.r - b.r)
+    .map((tile) => tile.letter)
+    .join('');
 }
 
 /**
