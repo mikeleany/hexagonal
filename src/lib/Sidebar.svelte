@@ -142,5 +142,6 @@
 
   li.unfound {
     opacity: 0.5;
+    letter-spacing: 0.1em;
   }
 </style>

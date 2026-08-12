@@ -68,9 +68,9 @@ function revealOrder(length: number): number[] {
   return order;
 }
 
-/** Same-length placeholder for `word`: revealed letters shown, rest replaced with `_`. */
+/** Same-length placeholder for `word`: revealed letters shown, rest replaced with `•`. */
 export function hintString(word: string, t: number): string {
   const n = shownCount(word.length, t);
   const revealed = new Set(revealOrder(word.length).slice(0, n));
-  return [...word].map((ch, i) => (revealed.has(i) ? ch : '_')).join('');
+  return [...word].map((ch, i) => (revealed.has(i) ? ch : '•')).join('');
 }
