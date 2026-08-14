@@ -1,5 +1,5 @@
 import { buildBoard } from './boardConstruction';
-import { loadEligibleWords, MAX_WORD_LENGTH, MIN_WORD_LENGTH } from './dictionary';
+import { loadEligibleWords, loadWordRarities, MAX_WORD_LENGTH, MIN_WORD_LENGTH } from './dictionary';
 import type { Tile } from './hexGeometry';
 import { mulberry32, seedForDate } from './prng';
 import { buildTrie } from './trie';
@@ -16,9 +16,8 @@ export type DailyPuzzle = {
  * against the exact board it was recorded on rather than the calendar date
  * -- which goes stale across a code update or a session left open past
  * midnight (see progressStorage.ts). Sorted by coordinate (not
- * board-building order, e.g. the Hamiltonian path in boardConstruction.ts)
- * so a future refactor of tile construction order can't change the id
- * without actually changing the board.
+ * board-building/placement order) so a future refactor of tile construction
+ * order can't change the id without actually changing the board.
  */
 function puzzleIdForTiles(tiles: Tile[]): string {
   return [...tiles]
@@ -34,8 +33,9 @@ function puzzleIdForTiles(tiles: Tile[]): string {
 export function generateDailyPuzzle(date: Date = new Date()): DailyPuzzle {
   const rng = mulberry32(seedForDate(date));
   const eligibleWords = loadEligibleWords();
+  const rarities = loadWordRarities();
 
-  const tiles = buildBoard(eligibleWords, rng);
+  const tiles = buildBoard(eligibleWords, rarities, rng);
   const trie = buildTrie(eligibleWords);
   const wordList = solveBoard(tiles, trie, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
 

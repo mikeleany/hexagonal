@@ -50,13 +50,12 @@ export function loadFullDictionary(): string[] {
   return ENTRIES.map((entry) => entry.word);
 }
 
-// TODO(offensive-words): generateWordLists.py excludes SCOWL's strongest
-// profanity/slur tags (vulgar-1, offensive-1, offensive-2), but that's a
-// partial improvement, not a complete blocklist — milder profanity and
-// words SCOWL doesn't tag at all still pass through. Before this is shown
-// to real users, filter the words returned here against a more complete
-// blocklist so offensive words can never be planted on the board or
-// accepted as a submission. Deliberately deferred for this cut.
+/**
+ * Offensive-word filtering already happened upstream in
+ * generateWordLists.py (SCOWL's profanity/slur tags unioned with the
+ * LDNOOBW blocklist, minus a whitelist) before words.txt was ever written —
+ * every word this function can return has already passed that filter.
+ */
 export function loadEligibleWords(
   minLength: number = MIN_WORD_LENGTH,
   maxLength: number = MAX_WORD_LENGTH,

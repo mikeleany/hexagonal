@@ -8,7 +8,7 @@ Click and drag from tile to tile — each tile you drag across must be adjacent 
 
 ## Status
 
-This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction currently uses a temporary v1 strategy (plant one 19-letter dictionary word across the whole board) rather than the general multi-word placement algorithm that's planned for later; offensive-word filtering on the dictionary is also incomplete (SCOWL's own tagging excludes some profanity/slurs, but it's not a full blocklist). Both are flagged with TODOs in the code.
+This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction uses constructive backtracking placement: words are placed one at a time along weighted-random adjacent-tile paths across the (partially filled) board, undoing and retrying when a placement leads to a dead end, until every tile is covered by at least one placed word. The dictionary is filtered for offensive words before it's ever bundled (SCOWL's profanity/slur tags combined with the LDNOOBW blocklist — see `scripts/generateWordLists.py`).
 
 ## Development
 
@@ -19,7 +19,9 @@ npm install
 npm run dev      # start the dev server at http://localhost:5173
 npm run build    # production build
 npm run preview  # preview a production build
-npm run check    # typecheck (svelte-check + tsc); the only correctness gate — there's no test suite or linter yet
+npm run check    # typecheck (svelte-check + tsc) — no linter configured yet
+npm run test     # Vitest — currently covers just the board-construction algorithm
+npm run bench    # Vitest benchmarks for the board-construction algorithm
 ```
 
 `dev`/`build`/`check` each regenerate the word list from SCOWL first; the first run needs network access and `make`, and takes roughly a minute (cached after that).
