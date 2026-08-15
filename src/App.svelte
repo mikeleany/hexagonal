@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import HexGrid from './lib/HexGrid.svelte';
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
   import CompletionOverlay from './lib/CompletionOverlay.svelte';
-  import { DAILY_TILES, DAILY_WORD_LIST, DAILY_PUZZLE_ID } from './lib/dailyPuzzle';
-  import type { Tile, WordSubmission } from './lib/hexGeometry';
+  import { generateDailyPuzzle, type DailyPuzzle } from './lib/dailyPuzzle';
+  import { generateHexCoords, tileId, type Tile, type WordSubmission } from './lib/hexGeometry';
   import {
     getWordScore,
     getScoringState,
@@ -18,45 +19,77 @@
   } from './lib/scoring';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
+  // Real board geometry with blank letters, shown until the actual puzzle
+  // finishes generating (see onMount below) — same 19-tile shape every day,
+  // so this is cheap to compute up front and needs no dictionary/backtracking.
+  const EMPTY_TILES: Tile[] = generateHexCoords(2).map((coord) => ({
+    id: tileId(coord),
+    q: coord.q,
+    r: coord.r,
+    letter: '',
+  }));
+
+  let puzzle = $state<DailyPuzzle | null>(null);
+
   // Case-insensitive lookup from a submitted word to its canonical casing in
-  // DAILY_WORD_LIST (matches the dictionary source, not the uppercase tiles
-  // submissions are built from — see handleWordSubmit).
-  const wordMap = new Map(DAILY_WORD_LIST.map((w) => [w.toLowerCase(), w]));
-  const commonWordSet = new Set(getCommonWords(DAILY_WORD_LIST));
+  // the word list (matches the dictionary source, not the uppercase tiles
+  // submissions are built from — see handleWordSubmit). Empty until puzzle
+  // loads, which also means nothing can match yet — see handleWordSubmit.
+  let wordMap = $derived(new Map((puzzle?.wordList ?? []).map((w) => [w.toLowerCase(), w])));
+  let commonWordSet = $derived(new Set(getCommonWords(puzzle?.wordList ?? [])));
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
 
-  // Filter against wordMap, not just the puzzle id: a mid-day redeploy could
-  // change DAILY_WORD_LIST without changing the board, and localStorage is
-  // untrusted external state generally. Also canonicalizes casing, in case
-  // progress was saved before DAILY_WORD_LIST's casing matched the dictionary.
-  let foundWords = $state<string[]>([
-    ...new Set(
-      loadFoundWords(DAILY_PUZZLE_ID)
-        .map((w) => wordMap.get(w.toLowerCase()))
-        .filter((w): w is string => w !== undefined),
-    ),
-  ]);
+  let foundWords = $state<string[]>([]);
   let commonFoundCount = $derived(foundWords.filter((w) => commonWordSet.has(w)).length);
 
-  // Seed from any restored progress so a returning player's score/bonus
-  // state reflects prior progress immediately, not just their next
-  // submission. handleWordSubmit below keeps updating these incrementally,
-  // so only the initial value of foundWords should be captured here.
-  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
-  const initialScoring = getScoringState(foundWords, DAILY_WORD_LIST);
-  let score = $state(initialScoring.score);
-  let commonBonusAwarded = $state(initialScoring.commonWordsComplete);
-  let allBonusAwarded = $state(initialScoring.allWordsComplete);
-  // Seeded silently, same rationale as commonBonusAwarded above -- a
-  // returning player who already crossed 10% shouldn't retroactively see
-  // the "hints available" banner on load.
-  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
-  let hintsUnlocked = $state(isHintsUnlockThresholdReached(foundWords, DAILY_WORD_LIST));
+  let score = $state(0);
+  let commonBonusAwarded = $state(false);
+  let allBonusAwarded = $state(false);
+  let hintsUnlocked = $state(false);
+
+  // One-shot: seeds every puzzle-dependent piece of state once generation
+  // finishes (puzzle only ever transitions null -> a value, never back).
+  // Not folded into $derived since foundWords/score/etc. are independently
+  // mutable after this point — handleWordSubmit keeps updating them
+  // incrementally — not pure functions of puzzle.
+  $effect(() => {
+    if (!puzzle) return;
+    // Filter against wordMap, not just the puzzle id: a mid-day redeploy
+    // could change the word list without changing the board, and
+    // localStorage is untrusted external state generally. Also
+    // canonicalizes casing, in case progress was saved before the word
+    // list's casing matched the dictionary.
+    const restored = [
+      ...new Set(
+        loadFoundWords(puzzle.puzzleId)
+          .map((w) => wordMap.get(w.toLowerCase()))
+          .filter((w): w is string => w !== undefined),
+      ),
+    ];
+    const initialScoring = getScoringState(restored, puzzle.wordList);
+
+    foundWords = restored;
+    score = initialScoring.score;
+    commonBonusAwarded = initialScoring.commonWordsComplete;
+    allBonusAwarded = initialScoring.allWordsComplete;
+    hintsUnlocked = isHintsUnlockThresholdReached(restored, puzzle.wordList);
+  });
 
   $effect(() => {
-    saveFoundWords(foundWords, DAILY_PUZZLE_ID);
+    if (puzzle) saveFoundWords(foundWords, puzzle.puzzleId);
+  });
+
+  onMount(() => {
+    // Deferred rather than computed at module load: construction takes
+    // ~50-90ms (see boardConstruction.bench.ts), long enough to noticeably
+    // block first paint if it ran synchronously before mount. The
+    // setTimeout lets the browser paint the empty board first, then this
+    // runs and swaps in the real one.
+    setTimeout(() => {
+      puzzle = generateDailyPuzzle();
+    }, 0);
   });
 
   let rejectedToken = $state(0);
@@ -72,6 +105,10 @@
   }
 
   function handleWordSubmit(submission: WordSubmission) {
+    // Can't actually happen: wordMap is empty until puzzle loads, so
+    // nothing could resolve to a canonical match yet — this just narrows
+    // puzzle for TypeScript and is a safe no-op regardless.
+    if (!puzzle) return;
     const { word } = submission;
     const canonical = wordMap.get(word.toLowerCase());
     lastResultWord = word;
@@ -86,13 +123,13 @@
       foundWords = [...foundWords, canonical];
       score += getWordScore(canonical);
       let commonBonusJustFired = false;
-      if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, DAILY_WORD_LIST)) {
+      if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, puzzle.wordList)) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
         commonBonusToken += 1;
         commonBonusJustFired = true;
       }
-      if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, DAILY_WORD_LIST)) {
+      if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, puzzle.wordList)) {
         score += ALL_WORDS_COMPLETION_BONUS;
         allBonusAwarded = true;
         showCompletionOverlay = true;
@@ -101,7 +138,7 @@
       // common-bonus banner (tied to a real score bonus) takes priority --
       // the hints banner is skipped in that rare case, though hintsUnlocked
       // still flips true either way so the checkbox unlocks regardless.
-      if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, DAILY_WORD_LIST)) {
+      if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, puzzle.wordList)) {
         hintsUnlocked = true;
         if (!commonBonusJustFired) hintsAvailableToken += 1;
       }
@@ -114,7 +151,7 @@
     {commonFoundCount}
     commonTotalCount={commonWordSet.size}
     foundCount={foundWords.length}
-    totalCount={DAILY_WORD_LIST.length}
+    totalCount={puzzle?.wordList.length ?? 0}
     {score}
     {commonBonusToken}
     {hintsAvailableToken}
@@ -132,7 +169,7 @@
       />
       <div class="grid-wrap">
         <HexGrid
-          tiles={DAILY_TILES}
+          tiles={puzzle?.tiles ?? EMPTY_TILES}
           onSelectionChange={handleSelectionChange}
           onWordSubmit={handleWordSubmit}
           {rejectedToken}
@@ -140,7 +177,7 @@
       </div>
     </div>
     <div class="sidebar-wrap">
-      <Sidebar wordList={DAILY_WORD_LIST} {foundWords} />
+      <Sidebar wordList={puzzle?.wordList ?? []} {foundWords} />
     </div>
   </div>
 </main>

@@ -18,7 +18,7 @@ function isStoredProgress(value: unknown): value is StoredProgress {
 /**
  * Loads found words persisted from a previous session, discarding them if
  * they were recorded against a different puzzle (identified by its tile
- * letters -- see dailyPuzzle.ts's DAILY_PUZZLE_ID).
+ * letters -- see dailyPuzzle.ts's `puzzleId`).
  */
 export function loadFoundWords(puzzleId: string): string[] {
   try {

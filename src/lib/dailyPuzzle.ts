@@ -41,8 +41,3 @@ export function generateDailyPuzzle(date: Date = new Date()): DailyPuzzle {
 
   return { tiles, wordList, puzzleId: puzzleIdForTiles(tiles) };
 }
-
-const puzzle = generateDailyPuzzle();
-export const DAILY_TILES: Tile[] = puzzle.tiles;
-export const DAILY_WORD_LIST: readonly string[] = puzzle.wordList;
-export const DAILY_PUZZLE_ID: string = puzzle.puzzleId;

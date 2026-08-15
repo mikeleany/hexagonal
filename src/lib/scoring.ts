@@ -17,8 +17,8 @@ export const HINTS_UNLOCK_RATIO = 0.1;
 const RARE_BY_WORD = loadWordRarities();
 
 function isRare(word: string): boolean {
-  // Defensive fallback only — every word ever scored comes from
-  // DAILY_WORD_LIST, which is derived from this same rarity-backed
+  // Defensive fallback only — every word ever scored comes from the
+  // puzzle's word list, which is derived from this same rarity-backed
   // dictionary, so a miss here should never actually happen in practice.
   return RARE_BY_WORD.get(word.toLowerCase()) ?? true;
 }

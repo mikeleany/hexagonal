@@ -18,8 +18,8 @@ export type WordLengthGroup = {
  * in `wordList` is included so unfound words can render as hint placeholders
  * in their natural alphabetical position. `wordList` is assumed to already
  * be alphabetized (guaranteed by wordSolver.ts's `solveBoard`, the source of
- * DAILY_WORD_LIST) -- only `foundWords`, which arrives in discovery order,
- * needs sorting here.
+ * the puzzle's word list) -- only `foundWords`, which arrives in discovery
+ * order, needs sorting here.
  */
 export function buildWordEntries(
   wordList: readonly string[],
