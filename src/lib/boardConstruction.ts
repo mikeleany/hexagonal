@@ -12,11 +12,15 @@ type InternalTile = Omit<Tile, 'letter'> & { letter: string | null };
  * Tunable weighting constants for word/path selection — rough starting
  * points, not analytically derived. Eyeball-tune against real generated
  * boards (see boardConstruction.bench.ts / boardConstruction.test.ts) if
- * output looks off: too many short filler words (raise LENGTH_EXPONENT), or
- * boards that don't look reused enough (raise REUSE_STEP_WEIGHT).
+ * output looks off: too many short filler words (raise LENGTH_EXPONENT),
+ * boards that don't look reused enough (raise REUSE_WEIGHT /
+ * REUSE_STEP_WEIGHT), or word selection feeling too tied to the fixed base
+ * order (raise REUSE_WORD_WINDOW — costs more per recursion node).
  */
-const LENGTH_EXPONENT = 2;
+const LENGTH_EXPONENT = 4;
+const REUSE_WEIGHT = 3;
 const REUSE_STEP_WEIGHT = 3;
+const REUSE_WORD_WINDOW = 1000;
 
 function findValidPlacements(letter: string, tiles: readonly InternalTile[]): InternalTile[] {
   return tiles.filter((tile) => tile.letter === null || tile.letter === letter);
@@ -64,10 +68,10 @@ function overlapCount(word: string, filledCounts: ReadonlyMap<string, number>): 
 /**
  * Ranks candidate words in a weighted-random (not strict-sort) order,
  * favoring longer words. Computed once per `buildBoard` call — not per
- * recursion node — since length doesn't depend on board state; reuse
- * (which does) is handled separately by `candidateWords`' fresh-per-node
- * filtering and by the path-level bias in `findPlacementPaths`, not by
- * reordering this list.
+ * recursion node — since length doesn't depend on board state. This is
+ * only the base order; `candidateWords` re-weights a bounded window of the
+ * front of it by current reuse potential at each node, rather than
+ * reordering the whole list every time.
  */
 function weightedWordOrder(words: readonly string[], rng: () => number): string[] {
   const weighted = words.map((word) => ({ item: word, weight: word.length ** LENGTH_EXPONENT }));
@@ -78,21 +82,46 @@ function weightedWordOrder(words: readonly string[], rng: () => number): string[
  * Lazily walks the (already board-state-independent, computed once)
  * `wordOrder`, skipping words already placed and words fully satisfiable by
  * the board's current letters (overlapCount === length — they risk
- * covering zero new tiles and add nothing to letter variety). Only
- * computes `overlapCount` for words actually visited, not the whole list,
- * which is what keeps this cheap per recursion node despite `wordOrder`
- * spanning the entire dictionary.
+ * covering zero new tiles and add nothing to letter variety). The first
+ * REUSE_WORD_WINDOW surviving candidates are re-weighted by their current
+ * reuse potential and re-shuffled before being yielded, reintroducing a
+ * reuse bias into word selection that's reactive to board state, without
+ * paying to re-rank the entire dictionary at every node; everything past
+ * the window is yielded in the unmodified base order. Only computes
+ * `overlapCount` for words actually visited, not the whole list, which is
+ * what keeps this cheap despite `wordOrder` spanning the entire dictionary.
  */
 function* candidateWords(
   wordOrder: readonly string[],
   usedWords: ReadonlySet<string>,
   tiles: readonly InternalTile[],
+  rng: () => number,
 ): Generator<string> {
   const filledCounts = countLetters(tiles);
-  for (const word of wordOrder) {
-    if (usedWords.has(word)) continue;
-    if (overlapCount(word, filledCounts) === word.length) continue;
-    yield word;
+  const iterator = wordOrder[Symbol.iterator]();
+
+  const window: { item: string; weight: number }[] = [];
+  let result = iterator.next();
+  while (!result.done && window.length < REUSE_WORD_WINDOW) {
+    const word = result.value;
+    if (!usedWords.has(word)) {
+      const overlap = overlapCount(word, filledCounts);
+      if (overlap !== word.length) {
+        const reuseScore = 1 + REUSE_WEIGHT * overlap;
+        window.push({ item: word, weight: word.length ** LENGTH_EXPONENT * reuseScore });
+      }
+    }
+    result = iterator.next();
+  }
+
+  yield* weightedShuffle(window, rng);
+
+  while (!result.done) {
+    const word = result.value;
+    if (!usedWords.has(word) && overlapCount(word, filledCounts) !== word.length) {
+      yield word;
+    }
+    result = iterator.next();
   }
 }
 
@@ -217,7 +246,7 @@ function fillBoard(
     return true;
   }
 
-  for (const word of candidateWords(wordOrder, usedWords, tiles)) {
+  for (const word of candidateWords(wordOrder, usedWords, tiles, rng)) {
     for (const path of findPlacementPaths(word, tiles, adjacency, rng)) {
       const newlyFilled = applyPlacement(path, word);
       usedWords.add(word);
