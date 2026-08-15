@@ -12,15 +12,11 @@ type InternalTile = Omit<Tile, 'letter'> & { letter: string | null };
  * Tunable weighting constants for word/path selection — rough starting
  * points, not analytically derived. Eyeball-tune against real generated
  * boards (see boardConstruction.bench.ts / boardConstruction.test.ts) if
- * output looks off: too many short filler words (raise LENGTH_EXPONENT),
- * boards that look too "reused"/cramped or not reused enough (adjust
- * REUSE_WEIGHT / REUSE_STEP_WEIGHT), or too many obscure words (raise
- * COMMON_BONUS).
+ * output looks off: too many short filler words (raise LENGTH_EXPONENT), or
+ * boards that don't look reused enough (raise REUSE_STEP_WEIGHT).
  */
 const LENGTH_EXPONENT = 2;
-const REUSE_WEIGHT = 1;
 const REUSE_STEP_WEIGHT = 3;
-const COMMON_BONUS = 3;
 
 function findValidPlacements(letter: string, tiles: readonly InternalTile[]): InternalTile[] {
   return tiles.filter((tile) => tile.letter === null || tile.letter === letter);
@@ -66,40 +62,38 @@ function overlapCount(word: string, filledCounts: ReadonlyMap<string, number>): 
 }
 
 /**
- * Ranks remaining eligible words in a weighted-random (not strict-sort)
- * order, favoring longer words, words that share letters with what's
- * already on the board, and words tagged common over rare. Words fully
- * satisfiable by the board's current letters (overlapCount === length) are
- * excluded outright — they risk covering zero new tiles and add nothing to
- * letter variety, and the search never depends on any specific word
- * remaining available.
+ * Ranks candidate words in a weighted-random (not strict-sort) order,
+ * favoring longer words. Computed once per `buildBoard` call — not per
+ * recursion node — since length doesn't depend on board state; reuse
+ * (which does) is handled separately by `candidateWords`' fresh-per-node
+ * filtering and by the path-level bias in `findPlacementPaths`, not by
+ * reordering this list.
  */
-function weightedWordOrder(
-  eligibleWords: readonly string[],
+function weightedWordOrder(words: readonly string[], rng: () => number): string[] {
+  const weighted = words.map((word) => ({ item: word, weight: word.length ** LENGTH_EXPONENT }));
+  return weightedShuffle(weighted, rng);
+}
+
+/**
+ * Lazily walks the (already board-state-independent, computed once)
+ * `wordOrder`, skipping words already placed and words fully satisfiable by
+ * the board's current letters (overlapCount === length — they risk
+ * covering zero new tiles and add nothing to letter variety). Only
+ * computes `overlapCount` for words actually visited, not the whole list,
+ * which is what keeps this cheap per recursion node despite `wordOrder`
+ * spanning the entire dictionary.
+ */
+function* candidateWords(
+  wordOrder: readonly string[],
   usedWords: ReadonlySet<string>,
   tiles: readonly InternalTile[],
-  rarities: ReadonlyMap<string, boolean>,
-  rng: () => number,
-): string[] {
+): Generator<string> {
   const filledCounts = countLetters(tiles);
-  const weighted: { item: string; weight: number }[] = [];
-
-  for (const word of eligibleWords) {
+  for (const word of wordOrder) {
     if (usedWords.has(word)) continue;
-
-    const overlap = overlapCount(word, filledCounts);
-    if (overlap === word.length) continue; // fully reusable — contributes nothing new
-
-    const lengthScore = word.length ** LENGTH_EXPONENT;
-    const reuseScore = 1 + REUSE_WEIGHT * overlap;
-    // loadWordRarities() returns true for rare, false for common; a word
-    // absent from the map gets no bonus, same as a known-rare word.
-    const commonScore = rarities.get(word) === false ? COMMON_BONUS : 1;
-
-    weighted.push({ item: word, weight: lengthScore * reuseScore * commonScore });
+    if (overlapCount(word, filledCounts) === word.length) continue;
+    yield word;
   }
-
-  return weightedShuffle(weighted, rng);
 }
 
 type AnchorEnd = 'start' | 'end';
@@ -215,8 +209,7 @@ function fillBoard(
   tiles: readonly InternalTile[],
   tileById: ReadonlyMap<string, InternalTile>,
   adjacency: ReadonlyMap<string, InternalTile[]>,
-  eligibleWords: readonly string[],
-  rarities: ReadonlyMap<string, boolean>,
+  wordOrder: readonly string[],
   usedWords: Set<string>,
   rng: () => number,
 ): boolean {
@@ -224,12 +217,12 @@ function fillBoard(
     return true;
   }
 
-  for (const word of weightedWordOrder(eligibleWords, usedWords, tiles, rarities, rng)) {
+  for (const word of candidateWords(wordOrder, usedWords, tiles)) {
     for (const path of findPlacementPaths(word, tiles, adjacency, rng)) {
       const newlyFilled = applyPlacement(path, word);
       usedWords.add(word);
 
-      if (fillBoard(tiles, tileById, adjacency, eligibleWords, rarities, usedWords, rng)) {
+      if (fillBoard(tiles, tileById, adjacency, wordOrder, usedWords, rng)) {
         return true;
       }
 
@@ -243,12 +236,18 @@ function fillBoard(
 
 /**
  * Builds the board via constructive backtracking placement: repeatedly
- * picks a weighted-random eligible word (favoring longer, more
- * letter-reusing, and more common words) and a weighted-random
- * adjacent-tile path for it, fills in any still-empty tiles along that
- * path, and recurses into itself for the next word; on failure it undoes
- * the placement and tries the next path/word, backtracking until every
- * tile is covered by at least one placed word.
+ * picks a weighted-random word (favoring longer and more letter-reusing
+ * words) and a weighted-random adjacent-tile path for it, fills in any
+ * still-empty tiles along that path, and recurses into itself for the next
+ * word; on failure it undoes the placement and tries the next path/word,
+ * backtracking until every tile is covered by at least one placed word.
+ *
+ * Candidates are restricted to SCOWL's common tier (`rarities` from
+ * `loadWordRarities()`), not the full ~190K-word eligible dictionary —
+ * deliberately planted words should be recognizable, and it shrinks the
+ * one-time word-ranking pass considerably. `solveBoard` still scores the
+ * finished board against the full dictionary, so rare words can still turn
+ * up as incidental bonus finds; they just never drive construction.
  *
  * Throws if the search is genuinely exhausted without success. This is not
  * a fallback — no precondition check is performed before attempting, since
@@ -270,8 +269,12 @@ export function buildBoard(
   }));
   const tileById = new Map(tiles.map((tile) => [tile.id, tile]));
   const adjacency = buildAdjacencyMap(tiles);
+  // rarities.get(word) === false means "known common"; true means rare;
+  // undefined (word absent from the map) is treated as non-common.
+  const commonWords = eligibleWords.filter((word) => rarities.get(word) === false);
+  const wordOrder = weightedWordOrder(commonWords, rng);
 
-  const success = fillBoard(tiles, tileById, adjacency, eligibleWords, rarities, new Set(), rng);
+  const success = fillBoard(tiles, tileById, adjacency, wordOrder, new Set(), rng);
   if (!success) {
     throw new Error('buildBoard: exhausted every placement without filling the board');
   }
