@@ -30,10 +30,15 @@ export function buildWordEntries(
   allCommonWordsFound: boolean,
 ): WordEntry[] {
   const foundSet = new Set(foundWords);
-  const commonSet = new Set(getCommonWords(wordList));
-  const words = hintsEnabled
-    ? wordList.filter((word) => foundSet.has(word) || commonSet.has(word) || allCommonWordsFound)
-    : [...foundWords].sort();
+  let words: readonly string[];
+  if (!hintsEnabled) {
+    words = [...foundWords].sort();
+  } else if (allCommonWordsFound) {
+    words = wordList;
+  } else {
+    const commonSet = new Set(getCommonWords(wordList));
+    words = wordList.filter((word) => foundSet.has(word) || commonSet.has(word));
+  }
   return words.map((word) => ({ word, found: foundSet.has(word) }));
 }
 
