@@ -1,6 +1,11 @@
 <script lang="ts">
   import { groupWordsByLength, buildWordEntries, type WordEntry } from './wordGrouping';
-  import { isRareWord, getCommonWords, isHintsUnlockThresholdReached } from './scoring';
+  import {
+    isRareWord,
+    getCommonWords,
+    isHintsUnlockThresholdReached,
+    isCommonWordCompletionReached,
+  } from './scoring';
   import { hintThreshold, hintString } from './hints';
 
   let { wordList, foundWords }: { wordList: readonly string[]; foundWords: readonly string[] } =
@@ -20,9 +25,14 @@
   let commonFoundCount = $derived(foundWords.filter((w) => commonWords.has(w)).length);
   let hintsUnlocked = $derived(isHintsUnlockThresholdReached(foundWords, wordList));
   let hintThresholdT = $derived(hintThreshold(commonFoundCount, commonWords.size));
+  let allCommonWordsFound = $derived(isCommonWordCompletionReached(foundWords, wordList));
 
-  let groups = $derived(groupWordsByLength(wordList, foundWords, hintsEnabled));
-  let flatEntries = $derived(buildWordEntries(wordList, foundWords, hintsEnabled));
+  let groups = $derived(
+    groupWordsByLength(wordList, foundWords, hintsEnabled, allCommonWordsFound),
+  );
+  let flatEntries = $derived(
+    buildWordEntries(wordList, foundWords, hintsEnabled, allCommonWordsFound),
+  );
   // Sizes columns against the full solution (wordList), not just found
   // words, so column widths never shift as the player finds more words --
   // only window resizing should reflow the layout.

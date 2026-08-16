@@ -14,20 +14,26 @@ export type WordLengthGroup = {
 
 /**
  * All words to display, alphabetized. When `hintsEnabled` is false, only
- * found words are included (the pre-hints behavior). When true, every word
- * in `wordList` is included so unfound words can render as hint placeholders
- * in their natural alphabetical position. `wordList` is assumed to already
- * be alphabetized (guaranteed by wordSolver.ts's `solveBoard`, the source of
- * the puzzle's word list) -- only `foundWords`, which arrives in discovery
- * order, needs sorting here.
+ * found words are included (the pre-hints behavior). When true, unfound
+ * common words are included so they can render as hint placeholders in
+ * their natural alphabetical position; unfound rare words are included too,
+ * but only once `allCommonWordsFound` is true (hints are staged: common
+ * words first, rare words unlock once every common word has been found).
+ * `wordList` is assumed to already be alphabetized (guaranteed by
+ * wordSolver.ts's `solveBoard`, the source of the puzzle's word list) --
+ * only `foundWords`, which arrives in discovery order, needs sorting here.
  */
 export function buildWordEntries(
   wordList: readonly string[],
   foundWords: readonly string[],
   hintsEnabled: boolean,
+  allCommonWordsFound: boolean,
 ): WordEntry[] {
   const foundSet = new Set(foundWords);
-  const words = hintsEnabled ? wordList : [...foundWords].sort();
+  const commonSet = new Set(getCommonWords(wordList));
+  const words = hintsEnabled
+    ? wordList.filter((word) => foundSet.has(word) || commonSet.has(word) || allCommonWordsFound)
+    : [...foundWords].sort();
   return words.map((word) => ({ word, found: foundSet.has(word) }));
 }
 
@@ -36,6 +42,7 @@ export function groupWordsByLength(
   wordList: readonly string[],
   foundWords: readonly string[],
   hintsEnabled = false,
+  allCommonWordsFound = false,
 ): WordLengthGroup[] {
   const commonSet = new Set(getCommonWords(wordList));
 
@@ -62,7 +69,7 @@ export function groupWordsByLength(
   }
 
   const entriesByLength = new Map<number, WordEntry[]>();
-  for (const entry of buildWordEntries(wordList, foundWords, hintsEnabled)) {
+  for (const entry of buildWordEntries(wordList, foundWords, hintsEnabled, allCommonWordsFound)) {
     const entries = entriesByLength.get(entry.word.length);
     if (entries) entries.push(entry);
     else entriesByLength.set(entry.word.length, [entry]);
