@@ -56,9 +56,9 @@ lists are generated:
      too, so a word never needs to be removed from wordBlacklist.txt just
      because it was also added to wordWhitelist.txt.
   5. Remove whatever's left from the valid/common word sets.
-This combined list is also written to .cache/scowl/filtered-offensive.txt
-(see Output below) so it can be reviewed and used to grow the whitelist or
-blacklist.
+The subset of this combined list that actually matched a valid word is also
+written to .cache/scowl/filtered-offensive.txt (see Output below) so it can
+be reviewed and used to grow the whitelist or blacklist.
 
 Requires `make` and `python3` on PATH (both used to build SCOWL's own
 database from its source; no pip installs needed for this script or for
