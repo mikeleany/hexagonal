@@ -50,12 +50,10 @@ export function loadFullDictionary(): string[] {
   return ENTRIES.map((entry) => entry.word);
 }
 
-/**
- * Offensive-word filtering already happened upstream in
- * generateWordLists.py (SCOWL's profanity/slur tags unioned with the
- * LDNOOBW blocklist, minus a whitelist) before words.txt was ever written —
- * every word this function can return has already passed that filter.
- */
+// Offensive-word filtering (SCOWL's usage-note tags, LDNOOBW, and
+// scripts/wordBlacklist.txt, with scripts/wordWhitelist.txt as the
+// override) already happened when generateWordLists.py built words.txt —
+// see that script for details.
 export function loadEligibleWords(
   minLength: number = MIN_WORD_LENGTH,
   maxLength: number = MAX_WORD_LENGTH,

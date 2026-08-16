@@ -8,7 +8,7 @@ Click and drag from tile to tile — each tile you drag across must be adjacent 
 
 ## Status
 
-This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction uses constructive backtracking placement: words are placed one at a time along weighted-random adjacent-tile paths across the (partially filled) board, undoing and retrying when a placement leads to a dead end, until every tile is covered by at least one placed word. The dictionary is filtered for offensive words before it's ever bundled (SCOWL's profanity/slur tags combined with the LDNOOBW blocklist — see `scripts/generateWordLists.py`).
+This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction uses constructive backtracking placement: words are placed one at a time along weighted-random adjacent-tile paths across the (partially filled) board, undoing and retrying when a placement leads to a dead end, until every tile is covered by at least one placed word. The dictionary is filtered for offensive words before it's ever bundled (SCOWL's profanity/slur tags, the LDNOOBW blocklist, and a hand-maintained blacklist/whitelist — see `scripts/generateWordLists.py`).
 
 ## Development
 

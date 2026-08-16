@@ -48,11 +48,17 @@ lists are generated:
      (https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words,
      CC BY 4.0), included because SCOWL's own tagging alone was confirmed to
      miss at least one clearly-vulgar word entirely.
-  3. Subtract scripts/wordWhitelist.txt, a small hand-maintained list of
-     words to keep despite being blocklisted.
-  4. Remove whatever's left from the valid/common word sets.
-This combined list is also written to .cache/scowl/filtered-offensive.txt
-(see Output below) so it can be reviewed and used to grow the whitelist.
+  3. Union that with scripts/wordBlacklist.txt, a small hand-maintained list
+     of additional words to block -- for anything neither of the above two
+     sources tags, e.g. milder profanity or words SCOWL doesn't tag at all.
+  4. Subtract scripts/wordWhitelist.txt, a small hand-maintained list of
+     words to keep despite being blocklisted. This wins over the blacklist
+     too, so a word never needs to be removed from wordBlacklist.txt just
+     because it was also added to wordWhitelist.txt.
+  5. Remove whatever's left from the valid/common word sets.
+The subset of this combined list that actually matched a valid word is also
+written to .cache/scowl/filtered-offensive.txt (see Output below) so it can
+be reviewed and used to grow the whitelist or blacklist.
 
 Requires `make` and `python3` on PATH (both used to build SCOWL's own
 database from its source; no pip installs needed for this script or for
@@ -68,6 +74,9 @@ Inputs:
                                 line, '#' starts an inline comment, blank
                                 lines ignored. Words to keep even though
                                 they'd otherwise be blocklisted.
+  scripts/wordBlacklist.txt -- checked into git, same format as
+                                wordWhitelist.txt. Additional words to block
+                                beyond SCOWL's usage-note tags and LDNOOBW.
 
 Output (all under .cache/scowl/, gitignored -- not committed, so anything
 that needs these files must generate them first):
@@ -109,6 +118,7 @@ SCOWL_SRC_DIR = CACHE_DIR / f"wordlist-{SCOWL_TAG}"
 LDNOOBW_CACHE = CACHE_DIR / "ldnoobw" / f"{LDNOOBW_COMMIT}.txt"
 OUTPUT_DIR = CACHE_DIR / "scowl"
 WHITELIST_PATH = REPO_ROOT / "scripts" / "wordWhitelist.txt"
+BLACKLIST_PATH = REPO_ROOT / "scripts" / "wordBlacklist.txt"
 
 # So a stalled connection fails loudly instead of hanging `npm run dev/build/check`.
 DOWNLOAD_TIMEOUT_SECONDS = 30
@@ -245,10 +255,11 @@ def load_ldnoobw_blocklist(path: Path) -> set[str]:
     }
 
 
-def load_whitelist(path: Path) -> set[str]:
-    """Words to keep even though they're blocklisted. Not required to be a
-    subset of the blocklist -- it's simply subtracted from it, the same
-    relationship the blocklist has to the word list."""
+def load_hand_maintained_wordlist(path: Path) -> set[str]:
+    """Shared loader for wordWhitelist.txt/wordBlacklist.txt: one lowercase
+    word per line, '#' starts an inline comment, blank lines ignored. Not
+    required to be a subset of anything -- each is simply unioned/subtracted
+    against the SCOWL+LDNOOBW blocklist independently."""
     if not path.exists():
         return set()
     words = set()
@@ -300,8 +311,9 @@ def main() -> None:
     print("Fetching LDNOOBW profanity blocklist ...")
     ldnoobw_words = load_ldnoobw_blocklist(fetch_ldnoobw_wordlist())
 
-    whitelist = load_whitelist(WHITELIST_PATH)
-    blocklist = (scowl_offensive_words | ldnoobw_words) - whitelist
+    whitelist = load_hand_maintained_wordlist(WHITELIST_PATH)
+    blacklist = load_hand_maintained_wordlist(BLACKLIST_PATH)
+    blocklist = (scowl_offensive_words | ldnoobw_words | blacklist) - whitelist
     blocked_words = blocklist & valid_set
 
     valid_set -= blocked_words
