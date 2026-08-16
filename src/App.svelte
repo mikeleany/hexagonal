@@ -87,9 +87,13 @@
     // block first paint if it ran synchronously before mount. The
     // setTimeout lets the browser paint the empty board first, then this
     // runs and swaps in the real one.
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       puzzle = generateDailyPuzzle();
     }, 0);
+    // Guards against a dev-time HMR teardown racing the pending timeout and
+    // firing on a detached component instance -- not a concern in
+    // production, where App.svelte mounts once for the page's lifetime.
+    return () => clearTimeout(timeoutId);
   });
 
   let rejectedToken = $state(0);
