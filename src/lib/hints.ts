@@ -11,11 +11,13 @@ export function hintThreshold(foundCommonCount: number, totalCommonCount: number
   return result;
 }
 
-/** Number of letters to reveal: grows with `t`, but always strictly less than half the word. */
+/**
+ * Number of letters to reveal: grows with `t`. Strictly less than half the
+ * word for `t <= 0.8` (common words); at `t = 1.0` (rare words, only shown
+ * once all common words are found) it can reach roughly half or more.
+ */
 function shownCount(length: number, t: number): number {
-  const raw = Math.floor((length * t) / 2) + 1;
-  const cap = Math.ceil(length / 2) - 1;
-  return Math.min(raw, cap);
+  return Math.round((length - 1) * t * 0.6);
 }
 
 /** Indices from the start: 0, 1, 2, ... */
