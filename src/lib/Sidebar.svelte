@@ -66,7 +66,12 @@
             {group.length} letters — {group.commonFoundCount}/{group.commonTotalCount} ({group.foundCount}/{group.totalCount}
             total)
           </div>
-          <ul style="column-width: {columnWidthCh(group.length, group.hasRare)}ch">
+          <ul
+            style="grid-template-columns: repeat(auto-fill, minmax({columnWidthCh(
+              group.length,
+              group.hasRare,
+            )}ch, 1fr))"
+          >
             {#each group.entries as entry (entry.word)}
               {@const rare = isRareWord(entry.word)}
               <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
@@ -75,7 +80,12 @@
         </div>
       {/each}
     {:else}
-      <ul style="column-width: {columnWidthCh(maxWordLength, flatHasRare)}ch">
+      <ul
+        style="grid-template-columns: repeat(auto-fill, minmax({columnWidthCh(
+          maxWordLength,
+          flatHasRare,
+        )}ch, 1fr))"
+      >
         {#each flatEntries as entry (entry.word)}
           {@const rare = isRareWord(entry.word)}
           <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
@@ -116,7 +126,7 @@
        showing, so column widths are computed against a stable content width
        instead of shifting once a scrollbar appears. */
     scrollbar-gutter: stable;
-    /* Multi-column layout can still round a column a pixel or two past the
+    /* Grid track sizing can still round a column a pixel or two past the
        container edge; there's nothing meaningful to reach by scrolling
        horizontally, so just clip it instead of showing a scrollbar. */
     overflow-x: hidden;
@@ -134,6 +144,7 @@
   }
 
   ul {
+    display: grid;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -142,7 +153,6 @@
 
   li {
     padding: 0.15em 0;
-    break-inside: avoid;
   }
 
   li.rare {
