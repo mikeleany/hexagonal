@@ -201,15 +201,15 @@
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-    padding: 4vmin;
-    gap: 5vmin;
+    padding: clamp(0.5rem, 4vmin, 1rem);
+    gap: clamp(0.75rem, 5vmin, 1.25rem);
   }
 
   .play-area {
     display: flex;
     flex: 1;
     min-height: 0;
-    gap: 5vmin;
+    gap: clamp(0.75rem, 5vmin, 1.25rem);
   }
 
   /* Groups the live-selection readout with the grid (not the sidebar) so
@@ -220,7 +220,7 @@
     flex: 1;
     min-width: 0;
     min-height: 0;
-    gap: 5vmin;
+    gap: clamp(0.75rem, 5vmin, 1.25rem);
   }
 
   .grid-wrap {

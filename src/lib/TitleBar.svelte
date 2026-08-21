@@ -80,7 +80,7 @@
   .titlebar {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.5em;
   }
@@ -88,20 +88,29 @@
   .title {
     font-size: 1.8rem;
     font-weight: 700;
+    line-height: 1;
   }
 
   .stats {
     text-align: right;
+    /* Fixed height (not content-hugging), covering the status+substatus
+       two-line case, so swapping in the single-line bonus banner never
+       shrinks the title bar (and with it, the hex grid below). */
+    height: 2.34rem;
+    display: flex;
+    flex-direction: column;
   }
 
   .status {
     font-weight: 600;
     font-size: 1.1rem;
+    line-height: 1.2;
     opacity: 0.85;
   }
 
   .substatus {
     font-size: 0.85rem;
+    line-height: 1.2;
     opacity: 0.75;
   }
 
@@ -110,6 +119,7 @@
     color: #f4d35e;
     font-weight: 600;
     font-size: 1.1rem;
+    line-height: 1.2;
   }
 
   .badge {
