@@ -30,7 +30,7 @@ function puzzleIdForTiles(tiles: Tile[]): string {
  * Deterministically generates the puzzle for the given date (Mountain Time
  * calendar day) — same date always produces the same board and word list.
  */
-export function generateDailyPuzzle(date: Date = new Date()): DailyPuzzle {
+export function generateDailyPuzzle(date: Date): DailyPuzzle {
   const rng = mulberry32(seedForDate(date));
   const eligibleWords = loadEligibleWords();
   const rarities = loadWordRarities();
