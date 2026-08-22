@@ -20,11 +20,27 @@
   } = $props();
 
   // Moves focus into the overlay as soon as it mounts, so keyboard users
-  // don't have to blindly tab to find it before they can dismiss it.
+  // don't have to blindly tab to find it before they can dismiss it, and
+  // restores focus to whatever was focused before (e.g. the stats button)
+  // on dismiss -- otherwise focus drops to the document body and the next
+  // Tab jumps back to the start of the page.
   let overlayEl: HTMLDivElement | undefined = $state();
   $effect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     overlayEl?.focus();
+    return () => {
+      previouslyFocused?.focus();
+    };
   });
+
+  // Only dismisses on a genuine backdrop click -- e.target === e.currentTarget
+  // excludes clicks that bubbled up from the card (its content, including
+  // scroll attempts on short viewports where the card scrolls internally).
+  function handleBackdropClick(e: MouseEvent) {
+    if (e.target === e.currentTarget) {
+      onDismiss();
+    }
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
@@ -58,7 +74,7 @@
   aria-modal="true"
   aria-labelledby="stats-headline"
   tabindex="-1"
-  onclick={onDismiss}
+  onclick={handleBackdropClick}
   onkeydown={handleKeydown}
 >
   <div class="card">

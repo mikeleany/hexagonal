@@ -34,11 +34,20 @@
 
   let puzzle = $state<DailyPuzzle | null>(null);
 
+  // Captured once and reused for both stats and puzzle generation (the
+  // latter happens later, inside onMount's setTimeout -- see below). Using
+  // two separate `new Date()` calls could disagree if that timeout gets
+  // delayed across a Mountain-Time midnight boundary (e.g. a backgrounded/
+  // throttled tab), leaving stats keyed to a different day than the puzzle
+  // actually generated -- which can double-count a day's score once that
+  // mismatch gets finalized on a later reload.
+  const sessionDate = new Date();
+
   // Resolved synchronously (not inside the puzzle-seeding $effect below):
   // stats has no dependency on puzzle/puzzleId at all -- it's keyed off the
   // calendar date -- so finalizing it before any effect exists sidesteps
   // any ordering hazard with the stats-persistence effect further down.
-  let stats = $state<Stats>(ensureDayStarted(loadStats(), getMountainTimeDateString()));
+  let stats = $state<Stats>(ensureDayStarted(loadStats(), getMountainTimeDateString(sessionDate)));
 
   // Case-insensitive lookup from a submitted word to its canonical casing in
   // the word list (matches the dictionary source, not the uppercase tiles
@@ -137,7 +146,7 @@
     // setTimeout lets the browser paint the empty board first, then this
     // runs and swaps in the real one.
     const timeoutId = setTimeout(() => {
-      puzzle = generateDailyPuzzle();
+      puzzle = generateDailyPuzzle(sessionDate);
     }, 0);
     // Guards against a dev-time HMR teardown racing the pending timeout and
     // firing on a detached component instance -- not a concern in
