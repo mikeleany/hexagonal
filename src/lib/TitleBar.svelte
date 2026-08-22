@@ -5,22 +5,20 @@
     foundCount,
     totalCount,
     score,
-    commonBonusToken,
     hintsAvailableToken,
     commonBonusAwarded,
     allBonusAwarded,
-    commonBonusAmount,
+    onOpenStats,
   }: {
     commonFoundCount: number;
     commonTotalCount: number;
     foundCount: number;
     totalCount: number;
     score: number;
-    commonBonusToken: number;
     hintsAvailableToken: number;
     commonBonusAwarded: boolean;
     allBonusAwarded: boolean;
-    commonBonusAmount: number;
+    onOpenStats: () => void;
   } = $props();
 
   let bannerMessage = $state<string | null>(null);
@@ -33,17 +31,6 @@
       bannerMessage = null;
     }, 3000);
   }
-
-  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
-  // same rationale as HexGrid's previousRejectedToken (see HexGrid.svelte).
-  let previousCommonBonusToken = commonBonusToken;
-  $effect(() => {
-    if (commonBonusToken !== previousCommonBonusToken) {
-      previousCommonBonusToken = commonBonusToken;
-      flashBanner(`★ Common words complete! +${commonBonusAmount.toLocaleString()}`);
-    }
-    return () => clearTimeout(bannerTimeoutId);
-  });
 
   // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
   // same rationale as previousCommonBonusToken above.
@@ -73,7 +60,10 @@
       </div>
     {/if}
   </div>
-  <span class="status">Score: {score.toLocaleString()}</span>
+  <div class="score-group">
+    <span class="status">Score: {score.toLocaleString()}</span>
+    <button class="stats-btn" onclick={onOpenStats} aria-label="View stats">📊</button>
+  </div>
 </div>
 
 <style>
@@ -85,10 +75,34 @@
     gap: 0.5em;
   }
 
+  .score-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+  }
+
   .title {
     font-size: 1.8rem;
     font-weight: 700;
     line-height: 1;
+  }
+
+  .stats-btn {
+    background: none;
+    border: none;
+    padding: 0.15em 0.35em;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 6px;
+    color: #f4d35e;
+  }
+
+  .stats-btn:hover,
+  .stats-btn:focus-visible {
+    background: rgba(244, 211, 94, 0.15);
+    outline: 2px solid #f4d35e;
+    outline-offset: 1px;
   }
 
   .stats {

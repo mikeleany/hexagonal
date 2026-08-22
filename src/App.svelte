@@ -4,9 +4,10 @@
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
-  import CompletionOverlay from './lib/CompletionOverlay.svelte';
+  import StatsModal from './lib/StatsModal.svelte';
   import { generateDailyPuzzle, type DailyPuzzle } from './lib/dailyPuzzle';
   import { generateHexCoords, tileId, type Tile, type WordSubmission } from './lib/hexGeometry';
+  import { getMountainTimeDateString } from './lib/prng';
   import {
     getWordScore,
     getScoringState,
@@ -18,6 +19,8 @@
     ALL_WORDS_COMPLETION_BONUS,
   } from './lib/scoring';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
+  import { ensureDayStarted, recordCompletion, updateTodaySnapshot, type Stats } from './lib/stats';
+  import { loadStats, saveStats } from './lib/statsStorage';
 
   // Real board geometry with blank letters, shown until the actual puzzle
   // finishes generating (see onMount below) — same 19-tile shape every day,
@@ -30,6 +33,12 @@
   }));
 
   let puzzle = $state<DailyPuzzle | null>(null);
+
+  // Resolved synchronously (not inside the puzzle-seeding $effect below):
+  // stats has no dependency on puzzle/puzzleId at all -- it's keyed off the
+  // calendar date -- so finalizing it before any effect exists sidesteps
+  // any ordering hazard with the stats-persistence effect further down.
+  let stats = $state<Stats>(ensureDayStarted(loadStats(), getMountainTimeDateString()));
 
   // Case-insensitive lookup from a submitted word to its canonical casing in
   // the word list (matches the dictionary source, not the uppercase tiles
@@ -81,6 +90,10 @@
     if (puzzle) saveFoundWords(foundWords, puzzle.puzzleId);
   });
 
+  $effect(() => {
+    saveStats(stats);
+  });
+
   onMount(() => {
     // Deferred rather than computed at module load: construction takes
     // ~50-90ms (see boardConstruction.bench.ts), long enough to noticeably
@@ -100,9 +113,8 @@
   let resultToken = $state(0);
   let lastResultWord = $state('');
   let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
-  let commonBonusToken = $state(0);
   let hintsAvailableToken = $state(0);
-  let showCompletionOverlay = $state(false);
+  let showStatsModal = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
     selectionPath = path;
@@ -126,26 +138,31 @@
       lastResultState = 'accepted';
       foundWords = [...foundWords, canonical];
       score += getWordScore(canonical);
-      let commonBonusJustFired = false;
       if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, puzzle.wordList)) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
-        commonBonusToken += 1;
-        commonBonusJustFired = true;
+        stats = recordCompletion(stats, 'common');
+        showStatsModal = true;
       }
       if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, puzzle.wordList)) {
         score += ALL_WORDS_COMPLETION_BONUS;
         allBonusAwarded = true;
-        showCompletionOverlay = true;
+        stats = recordCompletion(stats, 'all');
+        showStatsModal = true;
       }
-      // If a single submission crosses both thresholds at once, the
-      // common-bonus banner (tied to a real score bonus) takes priority --
-      // the hints banner is skipped in that rare case, though hintsUnlocked
-      // still flips true either way so the checkbox unlocks regardless.
       if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, puzzle.wordList)) {
         hintsUnlocked = true;
-        if (!commonBonusJustFired) hintsAvailableToken += 1;
+        hintsAvailableToken += 1;
       }
+
+      const commonTotal = commonWordSet.size;
+      const allTotal = puzzle.wordList.length;
+      const commonFoundNow = foundWords.filter((w) => commonWordSet.has(w)).length;
+      stats = updateTodaySnapshot(stats, {
+        score,
+        commonPercent: commonTotal > 0 ? (commonFoundNow / commonTotal) * 100 : 0,
+        allPercent: allTotal > 0 ? (foundWords.length / allTotal) * 100 : 0,
+      });
     }
   }
 </script>
@@ -157,11 +174,10 @@
     foundCount={foundWords.length}
     totalCount={puzzle?.wordList.length ?? 0}
     {score}
-    {commonBonusToken}
     {hintsAvailableToken}
     {commonBonusAwarded}
     {allBonusAwarded}
-    commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}
+    onOpenStats={() => (showStatsModal = true)}
   />
   <div class="play-area">
     <div class="board-column">
@@ -186,11 +202,15 @@
   </div>
 </main>
 
-{#if showCompletionOverlay}
-  <CompletionOverlay
-    bonusAmount={ALL_WORDS_COMPLETION_BONUS}
-    finalScore={score}
-    onDismiss={() => (showCompletionOverlay = false)}
+{#if showStatsModal}
+  <StatsModal
+    {stats}
+    {commonBonusAwarded}
+    {allBonusAwarded}
+    commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}
+    allBonusAmount={ALL_WORDS_COMPLETION_BONUS}
+    {score}
+    onDismiss={() => (showStatsModal = false)}
   />
 {/if}
 
