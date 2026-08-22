@@ -13,10 +13,10 @@
     getCommonWords,
     isCommonWordCompletionReached,
     isAllWordsCompletionReached,
-    isHintsUnlockThresholdReached,
     COMMON_WORD_COMPLETION_BONUS,
     ALL_WORDS_COMPLETION_BONUS,
   } from './lib/scoring';
+  import { hintThreshold } from './lib/hints';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
 
   // Real board geometry with blank letters, shown until the actual puzzle
@@ -47,7 +47,7 @@
   let score = $state(0);
   let commonBonusAwarded = $state(false);
   let allBonusAwarded = $state(false);
-  let hintsUnlocked = $state(false);
+  let lastAnnouncedHintThreshold = $state(0);
 
   // One-shot: seeds every puzzle-dependent piece of state once generation
   // finishes (puzzle only ever transitions null -> a value, never back).
@@ -69,12 +69,19 @@
       ),
     ];
     const initialScoring = getScoringState(restored, puzzle.wordList);
+    // Computed from `restored`/`puzzle.wordList` directly rather than the
+    // top-level `commonFoundCount`/`commonWordSet` derived values: reading
+    // those here would make this effect depend on `foundWords`, which it
+    // also writes below, causing it to re-fire (and reset progress) on every
+    // subsequent word submission instead of running once per puzzle load.
+    const restoredCommonWords = getCommonWords(puzzle.wordList);
+    const restoredCommonCount = restored.filter((w) => restoredCommonWords.includes(w)).length;
 
     foundWords = restored;
     score = initialScoring.score;
     commonBonusAwarded = initialScoring.commonWordsComplete;
     allBonusAwarded = initialScoring.allWordsComplete;
-    hintsUnlocked = isHintsUnlockThresholdReached(restored, puzzle.wordList);
+    lastAnnouncedHintThreshold = hintThreshold(restoredCommonCount, restoredCommonWords.length);
   });
 
   $effect(() => {
@@ -101,7 +108,7 @@
   let lastResultWord = $state('');
   let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
   let commonBonusToken = $state(0);
-  let hintsAvailableToken = $state(0);
+  let hintLevelUpToken = $state(0);
   let showCompletionOverlay = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
@@ -140,11 +147,11 @@
       }
       // If a single submission crosses both thresholds at once, the
       // common-bonus banner (tied to a real score bonus) takes priority --
-      // the hints banner is skipped in that rare case, though hintsUnlocked
-      // still flips true either way so the checkbox unlocks regardless.
-      if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, puzzle.wordList)) {
-        hintsUnlocked = true;
-        if (!commonBonusJustFired) hintsAvailableToken += 1;
+      // the hint-level banner is skipped in that rare case.
+      const newHintThreshold = hintThreshold(commonFoundCount, commonWordSet.size);
+      if (newHintThreshold > lastAnnouncedHintThreshold) {
+        lastAnnouncedHintThreshold = newHintThreshold;
+        if (!commonBonusJustFired) hintLevelUpToken += 1;
       }
     }
   }
@@ -158,7 +165,7 @@
     totalCount={puzzle?.wordList.length ?? 0}
     {score}
     {commonBonusToken}
-    {hintsAvailableToken}
+    {hintLevelUpToken}
     {commonBonusAwarded}
     {allBonusAwarded}
     commonBonusAmount={COMMON_WORD_COMPLETION_BONUS}

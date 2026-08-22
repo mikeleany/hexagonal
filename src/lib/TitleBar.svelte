@@ -6,7 +6,7 @@
     totalCount,
     score,
     commonBonusToken,
-    hintsAvailableToken,
+    hintLevelUpToken,
     commonBonusAwarded,
     allBonusAwarded,
     commonBonusAmount,
@@ -17,7 +17,7 @@
     totalCount: number;
     score: number;
     commonBonusToken: number;
-    hintsAvailableToken: number;
+    hintLevelUpToken: number;
     commonBonusAwarded: boolean;
     allBonusAwarded: boolean;
     commonBonusAmount: number;
@@ -47,11 +47,11 @@
 
   // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
   // same rationale as previousCommonBonusToken above.
-  let previousHintsAvailableToken = hintsAvailableToken;
+  let previousHintLevelUpToken = hintLevelUpToken;
   $effect(() => {
-    if (hintsAvailableToken !== previousHintsAvailableToken) {
-      previousHintsAvailableToken = hintsAvailableToken;
-      flashBanner('💡 Hints available!');
+    if (hintLevelUpToken !== previousHintLevelUpToken) {
+      previousHintLevelUpToken = hintLevelUpToken;
+      flashBanner('💡 More hints available!');
     }
     return () => clearTimeout(bannerTimeoutId);
   });

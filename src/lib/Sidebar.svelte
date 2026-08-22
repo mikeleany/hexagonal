@@ -1,11 +1,6 @@
 <script lang="ts">
   import { groupWordsByLength, buildWordEntries, type WordEntry } from './wordGrouping';
-  import {
-    isRareWord,
-    getCommonWords,
-    isHintsUnlockThresholdReached,
-    isCommonWordCompletionReached,
-  } from './scoring';
+  import { isRareWord, getCommonWords, isCommonWordCompletionReached } from './scoring';
   import { hintThreshold, hintString } from './hints';
 
   let { wordList, foundWords }: { wordList: readonly string[]; foundWords: readonly string[] } =
@@ -23,7 +18,6 @@
 
   let commonWords = $derived(new Set(getCommonWords(wordList)));
   let commonFoundCount = $derived(foundWords.filter((w) => commonWords.has(w)).length);
-  let hintsUnlocked = $derived(isHintsUnlockThresholdReached(foundWords, wordList));
   let hintThresholdT = $derived(hintThreshold(commonFoundCount, commonWords.size));
   let allCommonWordsFound = $derived(isCommonWordCompletionReached(foundWords, wordList));
 
@@ -53,8 +47,8 @@
     <input type="checkbox" bind:checked={grouped} />
     Group by length
   </label>
-  <label class="toggle" class:disabled={!hintsUnlocked}>
-    <input type="checkbox" bind:checked={hintsEnabled} disabled={!hintsUnlocked} />
+  <label class="toggle">
+    <input type="checkbox" bind:checked={hintsEnabled} />
     Enable hints
   </label>
 
@@ -111,11 +105,6 @@
     padding-bottom: 0.75em;
     cursor: pointer;
     user-select: none;
-  }
-
-  .toggle.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .word-list {
