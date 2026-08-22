@@ -14,10 +14,10 @@
     getCommonWords,
     isCommonWordCompletionReached,
     isAllWordsCompletionReached,
-    isHintsUnlockThresholdReached,
     COMMON_WORD_COMPLETION_BONUS,
     ALL_WORDS_COMPLETION_BONUS,
   } from './lib/scoring';
+  import { hintThreshold } from './lib/hints';
   import { loadFoundWords, saveFoundWords } from './lib/progressStorage';
   import { ensureDayStarted, recordCompletion, updateTodaySnapshot, type Stats } from './lib/stats';
   import { loadStats, saveStats } from './lib/statsStorage';
@@ -65,7 +65,7 @@
   let score = $state(0);
   let commonBonusAwarded = $state(false);
   let allBonusAwarded = $state(false);
-  let hintsUnlocked = $state(false);
+  let lastAnnouncedHintThreshold = $state(0);
 
   // One-shot: seeds every puzzle-dependent piece of state once generation
   // finishes (puzzle only ever transitions null -> a value, never back).
@@ -87,12 +87,19 @@
       ),
     ];
     const initialScoring = getScoringState(restored, puzzle.wordList);
+    // Computed from `restored`/`puzzle.wordList` directly rather than the
+    // top-level `commonFoundCount`/`commonWordSet` derived values: reading
+    // those here would make this effect depend on `foundWords`, which it
+    // also writes below, causing it to re-fire (and reset progress) on every
+    // subsequent word submission instead of running once per puzzle load.
+    const restoredCommonWords = new Set(getCommonWords(puzzle.wordList));
+    const restoredCommonCount = restored.filter((w) => restoredCommonWords.has(w)).length;
 
     foundWords = restored;
     score = initialScoring.score;
     commonBonusAwarded = initialScoring.commonWordsComplete;
     allBonusAwarded = initialScoring.allWordsComplete;
-    hintsUnlocked = isHintsUnlockThresholdReached(restored, puzzle.wordList);
+    lastAnnouncedHintThreshold = hintThreshold(restoredCommonCount, restoredCommonWords.size);
 
     // Reconciles stats with progress that was restored from storage rather
     // than earned this session -- handleWordSubmit is the only other place
@@ -158,7 +165,7 @@
   let resultToken = $state(0);
   let lastResultWord = $state('');
   let lastResultState = $state<'accepted' | 'rejected' | 'duplicate'>('rejected');
-  let hintsAvailableToken = $state(0);
+  let hintLevelUpToken = $state(0);
   let showStatsModal = $state(false);
 
   function handleSelectionChange(path: Tile[]) {
@@ -207,17 +214,17 @@
         }
         showStatsModal = true;
       }
-      if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, puzzle.wordList)) {
-        hintsUnlocked = true;
-        hintsAvailableToken += 1;
+      const newHintThreshold = hintThreshold(commonFoundCount, commonWordSet.size);
+      if (newHintThreshold > lastAnnouncedHintThreshold) {
+        lastAnnouncedHintThreshold = newHintThreshold;
+        hintLevelUpToken += 1;
       }
 
       const commonTotal = commonWordSet.size;
       const allTotal = puzzle.wordList.length;
-      const commonFoundNow = foundWords.filter((w) => commonWordSet.has(w)).length;
       stats = updateTodaySnapshot(stats, {
         score,
-        commonPercent: commonTotal > 0 ? (commonFoundNow / commonTotal) * 100 : 0,
+        commonPercent: commonTotal > 0 ? (commonFoundCount / commonTotal) * 100 : 0,
         allPercent: allTotal > 0 ? (foundWords.length / allTotal) * 100 : 0,
       });
     }
@@ -231,7 +238,7 @@
     foundCount={foundWords.length}
     totalCount={puzzle?.wordList.length ?? 0}
     {score}
-    {hintsAvailableToken}
+    {hintLevelUpToken}
     {commonBonusAwarded}
     {allBonusAwarded}
     onOpenStats={() => (showStatsModal = true)}

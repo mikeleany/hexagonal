@@ -12,7 +12,6 @@ import { loadWordRarities } from "./dictionary";
 export const RARE_BONUS_K = 0.72;
 export const COMMON_WORD_COMPLETION_BONUS = 1500;
 export const ALL_WORDS_COMPLETION_BONUS = 3000;
-export const HINTS_UNLOCK_RATIO = 0.1;
 
 const RARE_BY_WORD = loadWordRarities();
 
@@ -49,18 +48,6 @@ export function isCommonWordCompletionReached(
   if (common.length === 0) return false;
   const foundLower = new Set(foundWords.map((word) => word.toLowerCase()));
   return common.every((word) => foundLower.has(word.toLowerCase()));
-}
-
-/** True once at least HINTS_UNLOCK_RATIO of common words in `wordList` have been found. */
-export function isHintsUnlockThresholdReached(
-  foundWords: readonly string[],
-  wordList: readonly string[],
-): boolean {
-  const common = getCommonWords(wordList);
-  if (common.length === 0) return false;
-  const foundLower = new Set(foundWords.map((word) => word.toLowerCase()));
-  const foundCommonCount = common.filter((word) => foundLower.has(word.toLowerCase())).length;
-  return foundCommonCount / common.length >= HINTS_UNLOCK_RATIO;
 }
 
 /** True once every word in `wordList` has been found. */

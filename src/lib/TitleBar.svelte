@@ -5,7 +5,7 @@
     foundCount,
     totalCount,
     score,
-    hintsAvailableToken,
+    hintLevelUpToken,
     commonBonusAwarded,
     allBonusAwarded,
     onOpenStats,
@@ -15,7 +15,7 @@
     foundCount: number;
     totalCount: number;
     score: number;
-    hintsAvailableToken: number;
+    hintLevelUpToken: number;
     commonBonusAwarded: boolean;
     allBonusAwarded: boolean;
     onOpenStats: () => void;
@@ -35,11 +35,11 @@
   // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
   // (making this $state would cause the effect below to read and write a tracked value,
   // causing an immediate self-retrigger -- see the same pattern in HexGrid.svelte).
-  let previousHintsAvailableToken = hintsAvailableToken;
+  let previousHintLevelUpToken = hintLevelUpToken;
   $effect(() => {
-    if (hintsAvailableToken !== previousHintsAvailableToken) {
-      previousHintsAvailableToken = hintsAvailableToken;
-      flashBanner('💡 Hints available!');
+    if (hintLevelUpToken !== previousHintLevelUpToken) {
+      previousHintLevelUpToken = hintLevelUpToken;
+      flashBanner('💡 More hints available!');
     }
     return () => clearTimeout(bannerTimeoutId);
   });
