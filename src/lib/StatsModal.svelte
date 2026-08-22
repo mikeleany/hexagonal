@@ -126,7 +126,9 @@
     border-radius: 12px;
     padding: 2rem 2.5rem;
     text-align: center;
-    max-width: 420px;
+    width: min(420px, calc(100vw - 2rem));
+    max-height: 90vh;
+    overflow-y: auto;
     cursor: default;
   }
 
@@ -159,8 +161,16 @@
 
   .stat-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem 1.5rem;
+  }
+
+  /* No fixed track minimum below this width -- prevents the grid from
+     forcing the card wider than narrow phone viewports (e.g. 320px). */
+  @media (max-width: 400px) {
+    .card {
+      padding: 1.5rem 1.25rem;
+    }
   }
 
   .stat-wide {

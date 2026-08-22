@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import HexGrid from './lib/HexGrid.svelte';
   import TitleBar from './lib/TitleBar.svelte';
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
@@ -84,6 +84,42 @@
     commonBonusAwarded = initialScoring.commonWordsComplete;
     allBonusAwarded = initialScoring.allWordsComplete;
     hintsUnlocked = isHintsUnlockThresholdReached(restored, puzzle.wordList);
+
+    // Reconciles stats with progress that was restored from storage rather
+    // than earned this session -- handleWordSubmit is the only other place
+    // stats gets updated, so without this, a puzzle whose progress was
+    // entirely restored (e.g. every existing player the first time this
+    // feature ships) would leave stats.today* at zero/false, causing
+    // tomorrow's finalization to wrongly break an already-completed streak
+    // and drop today's score out of the lifetime totals. Wrapped in
+    // untrack: this effect must depend only on puzzle (it's one-shot --
+    // puzzle only ever transitions null -> a value, once, for the life of
+    // the component). Reading stats here without untrack would make this
+    // effect also depend on stats, which it then writes -- causing it to
+    // re-run on every later handleWordSubmit-driven stats change and
+    // stomp live progress back to this restored snapshot.
+    const currentPuzzle = puzzle;
+    untrack(() => {
+      const commonTotal = commonWordSet.size;
+      const allTotal = currentPuzzle.wordList.length;
+      const commonFoundNow = restored.filter((w) => commonWordSet.has(w)).length;
+      stats = updateTodaySnapshot(stats, {
+        score,
+        commonPercent: commonTotal > 0 ? (commonFoundNow / commonTotal) * 100 : 0,
+        allPercent: allTotal > 0 ? (restored.length / allTotal) * 100 : 0,
+      });
+      // Guarded by stats.today*Complete rather than
+      // commonBonusAwarded/allBonusAwarded alone so this is a no-op when
+      // stats already reflects today's progress (e.g. a same-day reload
+      // after live play already recorded it) -- otherwise the streak
+      // would be double-incremented for the same day.
+      if (commonBonusAwarded && !stats.todayCommonComplete) {
+        stats = recordCompletion(stats, 'common');
+      }
+      if (allBonusAwarded && !stats.todayAllComplete) {
+        stats = recordCompletion(stats, 'all');
+      }
+    });
   });
 
   $effect(() => {
