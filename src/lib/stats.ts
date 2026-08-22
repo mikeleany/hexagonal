@@ -121,16 +121,21 @@ export function recordCompletion(stats: Stats, kind: 'common' | 'all'): Stats {
   };
 }
 
-/** Overwrites today's score/percentages with the latest values, so
- * whatever's persisted always reflects the most recent progress. */
+/** Raises today's score/percentages to the latest values, but never lowers
+ * them. Progress is normally monotonic within a puzzle (foundWords only
+ * grows), so this is a plain overwrite in the common case -- the floor
+ * matters when the active puzzle changes underneath a player on the same
+ * calendar day (e.g. a same-day redeploy): whatever was already earned
+ * against the prior puzzle stays credited for the day rather than being
+ * reconciled down to a freshly-loaded, less-progressed puzzle's numbers. */
 export function updateTodaySnapshot(
   stats: Stats,
   snapshot: { score: number; commonPercent: number; allPercent: number },
 ): Stats {
   return {
     ...stats,
-    todayScore: snapshot.score,
-    todayCommonPercent: snapshot.commonPercent,
-    todayAllPercent: snapshot.allPercent,
+    todayScore: Math.max(stats.todayScore, snapshot.score),
+    todayCommonPercent: Math.max(stats.todayCommonPercent, snapshot.commonPercent),
+    todayAllPercent: Math.max(stats.todayAllPercent, snapshot.allPercent),
   };
 }

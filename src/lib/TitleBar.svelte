@@ -32,8 +32,9 @@
     }, 3000);
   }
 
-  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only,
-  // same rationale as previousCommonBonusToken above.
+  // svelte-ignore state_referenced_locally -- intentional: snapshot the initial value only
+  // (making this $state would cause the effect below to read and write a tracked value,
+  // causing an immediate self-retrigger -- see the same pattern in HexGrid.svelte).
   let previousHintsAvailableToken = hintsAvailableToken;
   $effect(() => {
     if (hintsAvailableToken !== previousHintsAvailableToken) {

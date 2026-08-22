@@ -170,7 +170,7 @@ describe('recordCompletion', () => {
 });
 
 describe('updateTodaySnapshot', () => {
-  it('overwrites only today* fields, leaving streaks and lifetime totals untouched', () => {
+  it('raises only today* fields, leaving streaks and lifetime totals untouched', () => {
     const stats: Stats = {
       ...createInitialStats(),
       currentCommonStreak: 2,
@@ -189,5 +189,20 @@ describe('updateTodaySnapshot', () => {
     expect(result.currentCommonStreak).toBe(2);
     expect(result.lifetimeScore).toBe(900);
     expect(result.daysPlayed).toBe(5);
+  });
+
+  it('never lowers today* fields, so a lower snapshot (e.g. a puzzle change mid-day) cannot erase already-earned progress', () => {
+    const stats: Stats = {
+      ...createInitialStats(),
+      todayScore: 11663,
+      todayCommonPercent: 100,
+      todayAllPercent: 100,
+    };
+
+    const result = updateTodaySnapshot(stats, { score: 40, commonPercent: 1.4, allPercent: 0.7 });
+
+    expect(result.todayScore).toBe(11663);
+    expect(result.todayCommonPercent).toBe(100);
+    expect(result.todayAllPercent).toBe(100);
   });
 });
