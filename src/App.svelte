@@ -92,14 +92,14 @@
     // those here would make this effect depend on `foundWords`, which it
     // also writes below, causing it to re-fire (and reset progress) on every
     // subsequent word submission instead of running once per puzzle load.
-    const restoredCommonWords = getCommonWords(puzzle.wordList);
-    const restoredCommonCount = restored.filter((w) => restoredCommonWords.includes(w)).length;
+    const restoredCommonWords = new Set(getCommonWords(puzzle.wordList));
+    const restoredCommonCount = restored.filter((w) => restoredCommonWords.has(w)).length;
 
     foundWords = restored;
     score = initialScoring.score;
     commonBonusAwarded = initialScoring.commonWordsComplete;
     allBonusAwarded = initialScoring.allWordsComplete;
-    lastAnnouncedHintThreshold = hintThreshold(restoredCommonCount, restoredCommonWords.length);
+    lastAnnouncedHintThreshold = hintThreshold(restoredCommonCount, restoredCommonWords.size);
 
     // Reconciles stats with progress that was restored from storage rather
     // than earned this session -- handleWordSubmit is the only other place
@@ -222,10 +222,9 @@
 
       const commonTotal = commonWordSet.size;
       const allTotal = puzzle.wordList.length;
-      const commonFoundNow = foundWords.filter((w) => commonWordSet.has(w)).length;
       stats = updateTodaySnapshot(stats, {
         score,
-        commonPercent: commonTotal > 0 ? (commonFoundNow / commonTotal) * 100 : 0,
+        commonPercent: commonTotal > 0 ? (commonFoundCount / commonTotal) * 100 : 0,
         allPercent: allTotal > 0 ? (foundWords.length / allTotal) * 100 : 0,
       });
     }
