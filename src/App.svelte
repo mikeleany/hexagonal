@@ -186,13 +186,25 @@
       if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, puzzle.wordList)) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
-        stats = recordCompletion(stats, 'common');
+        // Guarded by stats.todayCommonComplete, not just the puzzle-local
+        // commonBonusAwarded flag above -- the streak is persisted per
+        // calendar day, independent of which puzzle is currently loaded,
+        // so a same-day puzzle regeneration/reload can reset
+        // commonBonusAwarded to false while stats.todayCommonComplete is
+        // already true from earlier today. Without this guard, completing
+        // the new puzzle would double-increment the same day's streak.
+        if (!stats.todayCommonComplete) {
+          stats = recordCompletion(stats, 'common');
+        }
         showStatsModal = true;
       }
       if (!allBonusAwarded && isAllWordsCompletionReached(foundWords, puzzle.wordList)) {
         score += ALL_WORDS_COMPLETION_BONUS;
         allBonusAwarded = true;
-        stats = recordCompletion(stats, 'all');
+        // See the matching comment above for the common-words case.
+        if (!stats.todayAllComplete) {
+          stats = recordCompletion(stats, 'all');
+        }
         showStatsModal = true;
       }
       if (!hintsUnlocked && isHintsUnlockThresholdReached(foundWords, puzzle.wordList)) {
