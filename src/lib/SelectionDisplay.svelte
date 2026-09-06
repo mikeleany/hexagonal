@@ -6,11 +6,13 @@
     resultWord,
     resultState,
     resultToken,
+    rareWords,
   }: {
     liveLetters: string;
     resultWord: string;
     resultState: "accepted" | "rejected" | "duplicate";
     resultToken: number;
+    rareWords: ReadonlySet<string>;
   } = $props();
 
   let linger = $state(false);
@@ -51,8 +53,8 @@
   let displayText = $derived(liveLetters.length > 0 ? liveLetters : linger ? heldText : "");
   let showResultColor = $derived(liveLetters.length === 0 && linger);
   let showScore = $derived(showResultColor && resultState === "accepted");
-  let showRareStar = $derived(showScore && isRareWord(resultWord));
-  let wordScore = $derived(getWordScore(resultWord));
+  let showRareStar = $derived(showScore && isRareWord(resultWord, rareWords));
+  let wordScore = $derived(getWordScore(resultWord, rareWords));
 </script>
 
 <div class="selection-display">

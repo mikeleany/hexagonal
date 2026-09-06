@@ -3,7 +3,11 @@
   import { isRareWord, getCommonWords, isCommonWordCompletionReached } from './scoring';
   import { hintThreshold, hintString } from './hints';
 
-  let { wordList, foundWords }: { wordList: readonly string[]; foundWords: readonly string[] } =
+  let {
+    wordList,
+    foundWords,
+    rareWords,
+  }: { wordList: readonly string[]; foundWords: readonly string[]; rareWords: ReadonlySet<string> } =
     $props();
 
   let grouped = $state(true);
@@ -16,22 +20,24 @@
   // starred entry's column is sized as if the word had no prefix at all.
   const RARE_PREFIX_CH = 3;
 
-  let commonWords = $derived(new Set(getCommonWords(wordList)));
+  let commonWords = $derived(new Set(getCommonWords(wordList, rareWords)));
   let commonFoundCount = $derived(foundWords.filter((w) => commonWords.has(w)).length);
   let hintThresholdT = $derived(hintThreshold(commonFoundCount, commonWords.size));
-  let allCommonWordsFound = $derived(isCommonWordCompletionReached(foundWords, wordList));
+  let allCommonWordsFound = $derived(
+    isCommonWordCompletionReached(foundWords, wordList, rareWords),
+  );
 
   let groups = $derived(
-    groupWordsByLength(wordList, foundWords, hintsEnabled, allCommonWordsFound),
+    groupWordsByLength(wordList, foundWords, rareWords, hintsEnabled, allCommonWordsFound),
   );
   let flatEntries = $derived(
-    buildWordEntries(wordList, foundWords, hintsEnabled, allCommonWordsFound),
+    buildWordEntries(wordList, foundWords, rareWords, hintsEnabled, allCommonWordsFound),
   );
   // Sizes columns against the full solution (wordList), not just found
   // words, so column widths never shift as the player finds more words --
   // only window resizing should reflow the layout.
   let maxWordLength = $derived(wordList.reduce((max, w) => Math.max(max, w.length), 0));
-  let flatHasRare = $derived(wordList.some((w) => isRareWord(w)));
+  let flatHasRare = $derived(wordList.some((w) => isRareWord(w, rareWords)));
 
   function columnWidthCh(length: number, hasRare: boolean): number {
     return length + (hasRare ? RARE_PREFIX_CH : 1);
@@ -67,7 +73,7 @@
             )}ch, 1fr))"
           >
             {#each group.entries as entry (entry.word)}
-              {@const rare = isRareWord(entry.word)}
+              {@const rare = isRareWord(entry.word, rareWords)}
               <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
             {/each}
           </ul>
@@ -81,7 +87,7 @@
         )}ch, 1fr))"
       >
         {#each flatEntries as entry (entry.word)}
-          {@const rare = isRareWord(entry.word)}
+          {@const rare = isRareWord(entry.word, rareWords)}
           <li class:rare class:unfound={!entry.found}>{rare ? '★ ' : ''}{displayText(entry)}</li>
         {/each}
       </ul>

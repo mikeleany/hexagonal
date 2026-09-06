@@ -1,0 +1,63 @@
+name: Generate Daily Puzzles
+
+on:
+  schedule:
+    # 22:00 Mountain Time is 04:00 UTC the next day (MDT, UTC-6) or 05:00 UTC
+    # (MST, UTC-7). A fixed cron can't track the DST switch, so this splits
+    # the difference at 04:30 UTC (~30min off from nominal 10pm MT either
+    # way) -- only same-evening lead time matters, not minute precision.
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+    inputs:
+      offsetDays:
+        description: 'Days after Mountain-Time today to start generating'
+        default: '1'
+      days:
+        description: 'Number of consecutive days to generate'
+        default: '3'
+      force:
+        description: 'Overwrite existing puzzle files'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-puzzles
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .cache
+          key: scowl-${{ hashFiles('scripts/generateWordLists.py') }}
+      - run: npm ci
+      - run: npm run words:generate
+      - name: Generate upcoming puzzle files
+        run: |
+          npx vite-node scripts/generatePuzzles.ts \
+            --offset-days "${{ github.event.inputs.offsetDays || '1' }}" \
+            --days "${{ github.event.inputs.days || '3' }}" \
+            ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+      - name: Commit new puzzle files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/puzzles/*.json
+          if git diff --cached --quiet; then
+            echo "No new puzzle files to commit."
+          else
+            git commit -m "Add pre-generated puzzle(s)"
+            git push
+          fi

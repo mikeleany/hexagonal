@@ -2,6 +2,11 @@ export type AxialCoord = { q: number; r: number };
 export type Tile = { id: string; q: number; r: number; letter: string };
 export type WordSubmission = { tiles: Tile[]; word: string };
 
+/** Radius of the hexagon-of-hexagons board (19 tiles). Shared by board
+ * construction and by puzzleLoader.ts, which reconstructs tiles from a
+ * puzzleId string using this same radius's coordinate ordering. */
+export const BOARD_RADIUS = 2;
+
 export function tileId(coord: AxialCoord): string {
   return `${coord.q},${coord.r}`;
 }

@@ -1,4 +1,4 @@
-import { areAdjacent, generateHexCoords, tileId, type Tile } from './hexGeometry';
+import { areAdjacent, BOARD_RADIUS, generateHexCoords, tileId, type Tile } from './hexGeometry';
 import { weightedShuffle } from './weightedRandom';
 
 /**
@@ -290,7 +290,7 @@ export function buildBoard(
   rarities: ReadonlyMap<string, boolean>,
   rng: () => number,
 ): Tile[] {
-  const tiles: InternalTile[] = generateHexCoords(2).map((coord) => ({
+  const tiles: InternalTile[] = generateHexCoords(BOARD_RADIUS).map((coord) => ({
     id: tileId(coord),
     q: coord.q,
     r: coord.r,
