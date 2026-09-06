@@ -29,6 +29,11 @@ export class PuzzleLoadError extends Error {}
  */
 export function puzzleFromFile(data: PuzzleFile): LoadedPuzzle {
   const coords = generateHexCoords(BOARD_RADIUS);
+  if (data.puzzleId.length !== coords.length) {
+    throw new PuzzleLoadError(
+      `puzzleId has ${data.puzzleId.length} characters, expected ${coords.length}`,
+    );
+  }
   const tiles: Tile[] = coords.map((coord, i) => ({
     id: tileId(coord),
     q: coord.q,
