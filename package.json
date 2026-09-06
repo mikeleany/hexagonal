@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "npm run words:generate",
+    "predev": "npm run words:generate && npm run puzzles:generate:local",
     "dev": "vite",
     "prebuild": "npm run words:generate",
     "build": "vite build",
@@ -15,7 +15,10 @@
     "test": "vitest run",
     "prebench": "npm run words:generate",
     "bench": "vitest bench",
-    "words:generate": "python3 scripts/generateWordLists.py"
+    "words:generate": "python3 scripts/generateWordLists.py",
+    "puzzles:generate:local": "vite-node scripts/generatePuzzles.ts --days 2",
+    "puzzles:generate": "vite-node scripts/generatePuzzles.ts",
+    "puzzles:remove-word": "vite-node scripts/removeWord.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
@@ -25,6 +28,7 @@
     "svelte-check": "^4.7.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
+    "vite-node": "^6.0.0",
     "vitest": "^4.1.10"
   }
 }

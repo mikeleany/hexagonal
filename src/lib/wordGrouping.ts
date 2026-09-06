@@ -26,6 +26,7 @@ export type WordLengthGroup = {
 export function buildWordEntries(
   wordList: readonly string[],
   foundWords: readonly string[],
+  rareWords: ReadonlySet<string>,
   hintsEnabled: boolean,
   allCommonWordsFound: boolean,
 ): WordEntry[] {
@@ -36,7 +37,7 @@ export function buildWordEntries(
   } else if (allCommonWordsFound) {
     words = wordList;
   } else {
-    const commonSet = new Set(getCommonWords(wordList));
+    const commonSet = new Set(getCommonWords(wordList, rareWords));
     words = wordList.filter((word) => foundSet.has(word) || commonSet.has(word));
   }
   return words.map((word) => ({ word, found: foundSet.has(word) }));
@@ -46,10 +47,11 @@ export function buildWordEntries(
 export function groupWordsByLength(
   wordList: readonly string[],
   foundWords: readonly string[],
+  rareWords: ReadonlySet<string>,
   hintsEnabled = false,
   allCommonWordsFound = false,
 ): WordLengthGroup[] {
-  const commonSet = new Set(getCommonWords(wordList));
+  const commonSet = new Set(getCommonWords(wordList, rareWords));
 
   const totalByLength = new Map<number, number>();
   const commonTotalByLength = new Map<number, number>();
@@ -59,7 +61,7 @@ export function groupWordsByLength(
     if (commonSet.has(word)) {
       commonTotalByLength.set(word.length, (commonTotalByLength.get(word.length) ?? 0) + 1);
     }
-    if (isRareWord(word)) {
+    if (isRareWord(word, rareWords)) {
       hasRareByLength.set(word.length, true);
     }
   }
@@ -74,7 +76,7 @@ export function groupWordsByLength(
   }
 
   const entriesByLength = new Map<number, WordEntry[]>();
-  for (const entry of buildWordEntries(wordList, foundWords, hintsEnabled, allCommonWordsFound)) {
+  for (const entry of buildWordEntries(wordList, foundWords, rareWords, hintsEnabled, allCommonWordsFound)) {
     const entries = entriesByLength.get(entry.word.length);
     if (entries) entries.push(entry);
     else entriesByLength.set(entry.word.length, [entry]);

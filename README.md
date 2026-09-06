@@ -8,7 +8,7 @@ Click and drag from tile to tile — each tile you drag across must be adjacent 
 
 ## Status
 
-This is an early-stage prototype. The board and word list are generated client-side each day, deterministically seeded by the current date (Mountain Time) — see [src/lib/dailyPuzzle.ts](src/lib/dailyPuzzle.ts). Board construction uses constructive backtracking placement: words are placed one at a time along weighted-random adjacent-tile paths across the (partially filled) board, undoing and retrying when a placement leads to a dead end, until every tile is covered by at least one placed word. The dictionary is filtered for offensive words before it's ever bundled (SCOWL's profanity/slur tags, the LDNOOBW blocklist, and a hand-maintained blacklist/whitelist — see `scripts/generateWordLists.py`).
+This is an early-stage prototype. The board and word list for each day are pre-generated — deterministically seeded by that calendar date (Mountain Time) — by a scheduled GitHub Actions workflow ([.github/workflows/generate-puzzles.yml](.github/workflows/generate-puzzles.yml), running [scripts/generatePuzzles.ts](scripts/generatePuzzles.ts)) and committed as static JSON under `public/puzzles/YYYY-MM-DD.json`; the client fetches the current day's file rather than generating anything itself, so once a day's puzzle has been served to any player, an app redeploy can never change it out from under them. Board construction uses constructive backtracking placement: words are placed one at a time along weighted-random adjacent-tile paths across the (partially filled) board, undoing and retrying when a placement leads to a dead end, until every tile is covered by at least one placed word. The dictionary is filtered for offensive words before it's ever bundled (SCOWL's profanity/slur tags, the LDNOOBW blocklist, and a hand-maintained blacklist/whitelist — see `scripts/generateWordLists.py`). If an offensive word still slips through, `npm run puzzles:remove-word -- <word>` retroactively scrubs it from every already-committed puzzle file (without touching the board or any other word) and adds it to the blacklist so it's never planted again.
 
 ## Development
 
@@ -24,7 +24,7 @@ npm run test     # Vitest — currently covers just the board-construction algor
 npm run bench    # Vitest benchmarks for the board-construction algorithm
 ```
 
-`dev`/`build`/`check` each regenerate the word list from SCOWL first; the first run needs network access and `make`, and takes roughly a minute (cached after that).
+`dev`/`build`/`check` each regenerate the word list from SCOWL first; the first run needs network access and `make`, and takes roughly a minute (cached after that). `npm run dev` additionally generates today's and tomorrow's puzzle files locally if they're not already present, so there's nothing to fetch a 404 on — `build`/`check` don't, since they're also what CI runs, and CI must never silently generate a puzzle a scheduled workflow run happened to miss.
 
 Built with [Svelte 5](https://svelte.dev) (runes), TypeScript, and [Vite](https://vite.dev).
 

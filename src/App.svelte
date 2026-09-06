@@ -5,8 +5,8 @@
   import SelectionDisplay from './lib/SelectionDisplay.svelte';
   import Sidebar from './lib/Sidebar.svelte';
   import StatsModal from './lib/StatsModal.svelte';
-  import { generateDailyPuzzle, type DailyPuzzle } from './lib/dailyPuzzle';
-  import { generateHexCoords, tileId, type Tile, type WordSubmission } from './lib/hexGeometry';
+  import { loadDailyPuzzle, type LoadedPuzzle } from './lib/puzzleLoader';
+  import { BOARD_RADIUS, generateHexCoords, tileId, type Tile, type WordSubmission } from './lib/hexGeometry';
   import { getMountainTimeDateString } from './lib/prng';
   import {
     getWordScore,
@@ -25,22 +25,23 @@
   // Real board geometry with blank letters, shown until the actual puzzle
   // finishes generating (see onMount below) — same 19-tile shape every day,
   // so this is cheap to compute up front and needs no dictionary/backtracking.
-  const EMPTY_TILES: Tile[] = generateHexCoords(2).map((coord) => ({
+  const EMPTY_TILES: Tile[] = generateHexCoords(BOARD_RADIUS).map((coord) => ({
     id: tileId(coord),
     q: coord.q,
     r: coord.r,
     letter: '',
   }));
 
-  let puzzle = $state<DailyPuzzle | null>(null);
+  let puzzle = $state<LoadedPuzzle | null>(null);
+  let puzzleLoadFailed = $state(false);
 
-  // Captured once and reused for both stats and puzzle generation (the
-  // latter happens later, inside onMount's setTimeout -- see below). Using
-  // two separate `new Date()` calls could disagree if that timeout gets
-  // delayed across a Mountain-Time midnight boundary (e.g. a backgrounded/
-  // throttled tab), leaving stats keyed to a different day than the puzzle
-  // actually generated -- which can double-count a day's score once that
-  // mismatch gets finalized on a later reload.
+  // Captured once and reused for both stats and the puzzle fetch (the
+  // latter happens later, inside onMount -- see below). Using two separate
+  // `new Date()` calls could disagree if that fetch resolves across a
+  // Mountain-Time midnight boundary (e.g. a backgrounded/throttled tab),
+  // leaving stats keyed to a different day than the puzzle actually loaded
+  // -- which can double-count a day's score once that mismatch gets
+  // finalized on a later reload.
   const sessionDate = new Date();
 
   // Resolved synchronously (not inside the puzzle-seeding $effect below):
@@ -54,7 +55,8 @@
   // submissions are built from — see handleWordSubmit). Empty until puzzle
   // loads, which also means nothing can match yet — see handleWordSubmit.
   let wordMap = $derived(new Map((puzzle?.wordList ?? []).map((w) => [w.toLowerCase(), w])));
-  let commonWordSet = $derived(new Set(getCommonWords(puzzle?.wordList ?? [])));
+  let rareWords = $derived(puzzle?.rareWords ?? new Set<string>());
+  let commonWordSet = $derived(new Set(getCommonWords(puzzle?.wordList ?? [], rareWords)));
 
   let selectionPath = $state<Tile[]>([]);
   let liveLetters = $derived(selectionPath.map((t) => t.letter).join(''));
@@ -86,13 +88,13 @@
           .filter((w): w is string => w !== undefined),
       ),
     ];
-    const initialScoring = getScoringState(restored, puzzle.wordList);
+    const initialScoring = getScoringState(restored, puzzle.wordList, puzzle.rareWords);
     // Computed from `restored`/`puzzle.wordList` directly rather than the
     // top-level `commonFoundCount`/`commonWordSet` derived values: reading
     // those here would make this effect depend on `foundWords`, which it
     // also writes below, causing it to re-fire (and reset progress) on every
     // subsequent word submission instead of running once per puzzle load.
-    const restoredCommonWords = new Set(getCommonWords(puzzle.wordList));
+    const restoredCommonWords = new Set(getCommonWords(puzzle.wordList, puzzle.rareWords));
     const restoredCommonCount = restored.filter((w) => restoredCommonWords.has(w)).length;
 
     foundWords = restored;
@@ -147,18 +149,28 @@
   });
 
   onMount(() => {
-    // Deferred rather than computed at module load: construction takes
-    // ~50-90ms (see boardConstruction.bench.ts), long enough to noticeably
-    // block first paint if it ran synchronously before mount. The
-    // setTimeout lets the browser paint the empty board first, then this
-    // runs and swaps in the real one.
-    const timeoutId = setTimeout(() => {
-      puzzle = generateDailyPuzzle(sessionDate);
-    }, 0);
-    // Guards against a dev-time HMR teardown racing the pending timeout and
-    // firing on a detached component instance -- not a concern in
+    // The puzzle is pre-generated (see puzzleLoader.ts) and fetched here
+    // rather than computed in-browser -- a same-day app redeploy must never
+    // be able to change today's already-served puzzle (issue #37). A fetch
+    // failure surfaces as an error state, never a silent fallback to
+    // generating one locally.
+    let cancelled = false;
+    loadDailyPuzzle(sessionDate)
+      .then((loaded) => {
+        if (!cancelled) puzzle = loaded;
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          puzzleLoadFailed = true;
+          console.error(err);
+        }
+      });
+    // Guards against a dev-time HMR teardown racing the pending fetch and
+    // resolving into a detached component instance -- not a concern in
     // production, where App.svelte mounts once for the page's lifetime.
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+    };
   });
 
   let rejectedToken = $state(0);
@@ -189,8 +201,11 @@
     } else {
       lastResultState = 'accepted';
       foundWords = [...foundWords, canonical];
-      score += getWordScore(canonical);
-      if (!commonBonusAwarded && isCommonWordCompletionReached(foundWords, puzzle.wordList)) {
+      score += getWordScore(canonical, puzzle.rareWords);
+      if (
+        !commonBonusAwarded &&
+        isCommonWordCompletionReached(foundWords, puzzle.wordList, puzzle.rareWords)
+      ) {
         score += COMMON_WORD_COMPLETION_BONUS;
         commonBonusAwarded = true;
         // Guarded by stats.todayCommonComplete, not just the puzzle-local
@@ -250,7 +265,11 @@
         resultWord={lastResultWord}
         resultState={lastResultState}
         {resultToken}
+        {rareWords}
       />
+      {#if puzzleLoadFailed}
+        <p class="puzzle-error">Today's puzzle isn't available yet — please check back soon.</p>
+      {/if}
       <div class="grid-wrap">
         <HexGrid
           tiles={puzzle?.tiles ?? EMPTY_TILES}
@@ -261,7 +280,7 @@
       </div>
     </div>
     <div class="sidebar-wrap">
-      <Sidebar wordList={puzzle?.wordList ?? []} {foundWords} />
+      <Sidebar wordList={puzzle?.wordList ?? []} {foundWords} {rareWords} />
     </div>
   </div>
 </main>
@@ -287,6 +306,11 @@
     box-sizing: border-box;
     padding: clamp(0.5rem, 4vmin, 1rem);
     gap: clamp(0.75rem, 5vmin, 1.25rem);
+  }
+
+  .puzzle-error {
+    text-align: center;
+    opacity: 0.8;
   }
 
   .play-area {

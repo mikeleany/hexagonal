@@ -41,3 +41,35 @@ export function generateDailyPuzzle(date: Date): DailyPuzzle {
 
   return { tiles, wordList, puzzleId: puzzleIdForTiles(tiles) };
 }
+
+/** On-disk schema for a pre-generated puzzle file (public/puzzles/*.json).
+ * Omits `tiles` entirely -- fully reconstructable from `puzzleId` alone,
+ * since puzzleIdForTiles's sort order matches generateHexCoords's emission
+ * order (see puzzleLoader.ts). Freezes each word's common/rare tag
+ * alongside it, so a later dictionary/blacklist regeneration can't shift an
+ * already-served puzzle's scoring. */
+export type PuzzleFileData = {
+  date: string;
+  puzzleId: string;
+  words: { word: string; rare: boolean }[];
+};
+
+/** Shapes a generated puzzle into the committed JSON schema, called only by
+ * scripts/generatePuzzles.ts. `?? true` mirrors the old defensive fallback
+ * in scoring.ts: a rarity-lookup miss should never happen (every word in
+ * wordList comes from the same rarity-backed dictionary), but treating an
+ * unexpected miss as rare rather than throwing keeps generation robust. */
+export function toPuzzleFileData(
+  puzzle: DailyPuzzle,
+  dateStr: string,
+  rarities: ReadonlyMap<string, boolean>,
+): PuzzleFileData {
+  return {
+    date: dateStr,
+    puzzleId: puzzle.puzzleId,
+    words: puzzle.wordList.map((word) => ({
+      word,
+      rare: rarities.get(word.toLowerCase()) ?? true,
+    })),
+  };
+}
