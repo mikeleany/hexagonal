@@ -2,21 +2,18 @@ name: Generate Daily Puzzles
 
 on:
   schedule:
-    # 22:00 Mountain Time is 04:00 UTC the next day (MDT, UTC-6) or 05:00 UTC
-    # (MST, UTC-7). A fixed cron can't track the DST switch, so this splits
-    # the difference at 04:30 UTC (~30min off from nominal 10pm MT either
-    # way) -- only same-evening lead time matters, not minute precision.
-    - cron: '30 4 * * *'
+    - cron: "0 0 * * *"
+      timezone: "America/Denver"
   workflow_dispatch:
     inputs:
       offsetDays:
-        description: 'Days after Mountain-Time today to start generating'
-        default: '1'
+        description: "Days after Mountain-Time today to start generating"
+        default: "0"
       days:
-        description: 'Number of consecutive days to generate'
-        default: '3'
+        description: "Number of consecutive days to generate"
+        default: "4"
       force:
-        description: 'Overwrite existing puzzle files'
+        description: "Overwrite existing puzzle files"
         type: boolean
         default: false
 
@@ -50,8 +47,8 @@ jobs:
       - name: Generate upcoming puzzle files
         run: |
           npx vite-node scripts/generatePuzzles.ts \
-            --offset-days "${{ github.event.inputs.offsetDays || '1' }}" \
-            --days "${{ github.event.inputs.days || '3' }}" \
+            --offset-days "${{ github.event.inputs.offsetDays || '0' }}" \
+            --days "${{ github.event.inputs.days || '4' }}" \
             ${{ github.event.inputs.force == 'true' && '--force' || '' }}
       - name: Commit new puzzle files
         run: |
