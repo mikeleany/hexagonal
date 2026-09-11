@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: generate-puzzles
@@ -51,13 +52,26 @@ jobs:
             --days "${{ github.event.inputs.days || '4' }}" \
             ${{ github.event.inputs.force == 'true' && '--force' || '' }}
       - name: Commit new puzzle files
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/puzzles/*.json
           if git diff --cached --quiet; then
             echo "No new puzzle files to commit."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "Add pre-generated puzzle(s)"
             git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Trigger deployment
+        # A push made with GITHUB_TOKEN doesn't trigger deploy.yml's `on:
+        # push` (GitHub suppresses workflow-triggering-workflow chains from
+        # the default token to prevent infinite loops), so without this the
+        # site silently keeps serving a stale build after every nightly
+        # puzzle commit. workflow_dispatch is exempt from that restriction.
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main
